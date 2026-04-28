@@ -1,4 +1,7 @@
-// Minimal service worker - nur für PWA Install, kein Caching das externe Requests blockiert
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', () => self.clients.claim());
-// Kein fetch handler - lässt alle Requests normal durch
+self.addEventListener('install', e => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin || url.pathname.startsWith('/.netlify/functions/')) return;
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+});

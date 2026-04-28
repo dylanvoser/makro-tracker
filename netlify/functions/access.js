@@ -1,25 +1,12 @@
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }, body: '' };
-  }
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
-
+  const headers = {'Content-Type':'application/json; charset=utf-8'};
+  if (event.httpMethod !== 'POST') return {statusCode:405,headers,body:JSON.stringify({ok:false,error:'Method not allowed'})};
   try {
-    const { code } = JSON.parse(event.body);
-    const correctCode = process.env.ACCESS_CODE;
-
-    if (!correctCode) {
-      // No code set = open access (fallback)
-      return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: true }) };
-    }
-
-    const isValid = code && code.trim() === correctCode.trim();
-    return {
-      statusCode: 200,
-      headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ok: isValid })
-    };
+    const { code } = JSON.parse(event.body || '{}');
+    const expected = process.env.ACCESS_CODE || '';
+    if (!expected) return {statusCode:500,headers,body:JSON.stringify({ok:false,error:'ACCESS_CODE fehlt in Netlify ENV'})};
+    return {statusCode:200,headers,body:JSON.stringify({ok:String(code||'') === expected})};
   } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ ok: false }) };
+    return {statusCode:400,headers,body:JSON.stringify({ok:false,error:'Ungültige Anfrage'})};
   }
 };
