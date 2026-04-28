@@ -1,4 +1,4 @@
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-20241022';
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
 function getKey() {
   const keys = [];
   for (let i = 1; i <= 10; i++) if (process.env[`ANTHROPIC_KEY_${i}`]) keys.push(process.env[`ANTHROPIC_KEY_${i}`]);
