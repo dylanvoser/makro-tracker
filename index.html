@@ -982,12 +982,12 @@ function renderMealsList(meals,containerId){
           <span class="meal-type-badge badge-${m.mahlzeit_typ}">${tm[m.mahlzeit_typ]||m.mahlzeit_typ}</span>
           <div style="font-size:13px;color:var(--text);margin:4px 0;">${esc(m.beschreibung)}</div>
           <div class="meal-macros" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;width:100%;">
-            <span><span style="color:#e67e22;white-space:nowrap;"><svg width="11" height="11" viewBox="0 0 24 24" fill="#e67e22" style="vertical-align:middle;margin-right:2px;"><path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/></svg>${m.kalorien||0}&nbsp;kcal</span>
-            <span style="color:#2d5a27;white-space:nowrap;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2d5a27" stroke-width="2.5" style="vertical-align:middle;margin-right:2px;"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>${m.protein||0}&thinsp;g P</span>
-            <span style="color:#8B6914;white-space:nowrap;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8B6914" stroke-width="2" style="vertical-align:middle;margin-right:2px;"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M8 12h8M12 8v8"/></svg>${m.carbs||0}&thinsp;g C</span>
-            <span style="color:#2980b9;white-space:nowrap;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" style="vertical-align:middle;margin-right:2px;"><ellipse cx="12" cy="12" rx="10" ry="6"/></svg>${m.fett||0}&thinsp;g F</span>
-            ${(m.sat_fat&&m.sat_fat>0)?`<span style="color:#777;white-space:nowrap;font-size:11px;">&#8593;${m.sat_fat}g&thinsp;gs</span>`:''}
-            ${(m.unsat_fat&&m.unsat_fat>0)?`<span style="color:#777;white-space:nowrap;font-size:11px;">&#8595;${m.unsat_fat}g&thinsp;ugs</span>`:''}
+            <span style="color:#e67e22;white-space:nowrap;">&#9679; ${m.kalorien||0} kcal</span>
+            <span style="color:#2d5a27;white-space:nowrap;">&#9829; ${m.protein||0}g P</span>
+            <span style="color:#8B6914;white-space:nowrap;">&#8853; ${m.carbs||0}g C</span>
+            <span style="color:#2980b9;white-space:nowrap;">&#9675; ${m.fett||0}g F</span>
+            ${(m.sat_fat>0)?'<span style="color:#777;white-space:nowrap;font-size:11px;">&#8593;'+m.sat_fat+'g gs</span>':''}
+            ${(m.unsat_fat>0)?'<span style="color:#777;white-space:nowrap;font-size:11px;">&#8595;'+m.unsat_fat+'g ugs</span>':''}
           </div>
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;">
@@ -1238,7 +1238,7 @@ async function reanalyzeMeal(){
 
 async function addMealFromDash(){
   const input=document.getElementById('quick-meal-input'),type=document.getElementById('quick-meal-type').value,rid=document.getElementById('quick-recipe-select').value,desc=input.value.trim();
-  if(rid){const{data}=await sb.from('rezepte').select('*').eq('id',rid).single();if(data){await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:today(),mahlzeit_typ:type,beschreibung:data.name+': '+data.zutaten,kalorien:data.kalorien,protein:data.protein,carbs:data.carbs,fett:data.fett,sat_fat:data.sat_fat,unsat_fat:data.unsat_fat,rezept_id:data.id});input.value='';await loadDashboard();return;}}
+  if(rid){const{data}=await sb.from('rezepte').select('*').eq('id',rid).maybeSingle();if(data){await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:today(),mahlzeit_typ:type,beschreibung:data.name+': '+data.zutaten,kalorien:data.kalorien,protein:data.protein,carbs:data.carbs,fett:data.fett,sat_fat:data.sat_fat,unsat_fat:data.unsat_fat,rezept_id:data.id});input.value='';await loadDashboard();return;}}
   if(!desc)return;
   document.getElementById('add-meal-btn').disabled=true;
   document.getElementById('meal-status').textContent='⏳ KI analysiert...';
@@ -1259,9 +1259,12 @@ async function saveMeal(){
   document.getElementById('save-meal-btn').disabled=false;
 }
 async function loadMeals(){
+  try{
   const date=document.getElementById('filter-date').value||today();
-  const{data}=await sb.from('mahlzeiten').select('*').eq('user_id',currentUser.id).eq('datum',date).order('created_at',{ascending:false});
+  const{data,error}=await sb.from('mahlzeiten').select('*').eq('user_id',currentUser.id).eq('datum',date).order('created_at',{ascending:false});
+  if(error)throw error;
   renderMealsList(data||[],'meals-list');
+  }catch(e){console.error('loadMeals error:',e);document.getElementById('meals-list').innerHTML='<div class="empty-state">Fehler beim Laden: '+e.message+'</div>';}
 }
 
 // RECIPES
@@ -1409,7 +1412,7 @@ async function checkMonthEnd(){
   const now=new Date(),lastDay=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
   if(now.getDate()<lastDay-2)return;
   const pm=now.getMonth()===0?12:now.getMonth(),py=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
-  const{data}=await sb.from('monats_zusammenfassung').select('id').eq('user_id',currentUser.id).eq('jahr',py).eq('monat',pm).single();
+  const{data}=await sb.from('monats_zusammenfassung').select('id').eq('user_id',currentUser.id).eq('jahr',py).eq('monat',pm).maybeSingle();
   if(data)return;
   document.getElementById('archive-section').innerHTML=`<div class="card" style="border:2px solid var(--accent);">
     <div class="ki-badge">✦ Monatsende</div><div class="card-title">Monat archivieren</div>
