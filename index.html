@@ -279,7 +279,7 @@ select:focus { border-color: var(--accent) !important; }
 <!-- Auth -->
 
 <!-- Access Code Screen -->
-<div id="access-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--bg);">
+<div id="access-screen" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--bg);z-index:500;">
   <div style="background:var(--surface);border-radius:24px;padding:2.5rem;width:100%;max-width:380px;border:1px solid var(--border);text-align:center;">
     <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:var(--accent);margin-bottom:4px;">NutriTrack</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:2rem;">Privater Bereich — Zugangscode erforderlich</div>
@@ -943,6 +943,36 @@ function openEditModal(m){
 function closeModal(){document.getElementById('edit-modal').style.display='none';}
 
 // ========== RECIPE FUNCTIONS ==========
+
+function openAddRecipeModal(id){
+  const r = _recipesCache ? _recipesCache.find(x=>x.id===id) : null;
+  if(!r) return;
+  const amount = prompt(`Menge eingeben (Rezept ist fuer ${r.portionen} ${r.einheit||'Portion'}):`);
+  if(!amount) return;
+  const type = document.getElementById('quick-meal-type')?.value || 'mittagessen';
+  // Parse amount and scale
+  const inputNum = parseFloat(amount);
+  const baseNum = parseFloat(r.portionen) || 1;
+  const scale = inputNum / baseNum;
+  sb.from('mahlzeiten').insert({
+    user_id: currentUser.id,
+    datum: today(),
+    mahlzeit_typ: type,
+    beschreibung: r.name + ' (' + amount + ' ' + (r.einheit||'Portion') + ')',
+    kalorien: Math.round((r.kalorien||0) * scale),
+    protein: Math.round((r.protein||0) * scale * 10) / 10,
+    carbs: Math.round((r.carbs||0) * scale * 10) / 10,
+    fett: Math.round((r.fett||0) * scale * 10) / 10,
+    sat_fat: Math.round((r.sat_fat||0) * scale * 10) / 10,
+    unsat_fat: Math.round((r.unsat_fat||0) * scale * 10) / 10,
+    rezept_id: r.id
+  }).then(()=>{
+    showPage('dashboard');
+    loadDashboard();
+  });
+}
+let _recipesCache = [];
+
 function toggleRecipe(id){
   const el=document.getElementById('recipe-detail-'+id);
   if(el)el.style.display=el.style.display==='none'?'block':'none';
@@ -1048,13 +1078,33 @@ async function loadRecipes(){
   const{data}=await sb.from('rezepte').select('*').eq('user_id',currentUser.id).order('name');
   const list=document.getElementById('recipe-list'),sel=document.getElementById('quick-recipe-select');
   while(sel.options.length>1)sel.remove(1);
+  _recipesCache = data;
   if(!data||!data.length){list.innerHTML='<div class="empty-state">Noch keine Rezepte</div>';return;}
-  list.innerHTML=data.map(r=>`<div style="padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
-    <div><div style="font-weight:500;font-size:14px;">${esc(r.name)}</div>
-    <div style="font-size:12px;color:var(--text2);margin-top:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="#e67e22" style="vertical-align:middle"><path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/></svg>${r.kalorien||'?'}&nbsp;kcal &nbsp;<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2d5a27" stroke-width="2.5" style="vertical-align:middle"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>${r.protein||'?'}g P &nbsp;<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#8B6914" stroke-width="2" style="vertical-align:middle"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M8 12h8M12 8v8"/></svg>${r.carbs||'?'}g C &nbsp;<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" style="vertical-align:middle"><ellipse cx="12" cy="12" rx="10" ry="6"/></svg>${r.fett||'?'}g F (ges:${r.sat_fat||'?'}g unges:${r.unsat_fat||'?'}g) · ${r.portionen} ${r.einheit||'Port.'}</div></div>
-    <div class="flex-gap"><button class="btn btn-sm" onclick="useRecipe(${r.id})">Verwenden</button><button class="btn btn-danger btn-sm" onclick="deleteRecipe(${r.id})">✕</button></div>
-  </div>`).join('');
-  data.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.name;sel.appendChild(o);});
+  list.innerHTML=data.map(r=>`
+    <div style="border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;">
+      <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="toggleRecipe(${r.id})">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:500;font-size:14px;">${esc(r.name)}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;flex-wrap:wrap;gap:5px;">
+            <span style="color:#e67e22;white-space:nowrap;"><svg width="10" height="10" viewBox="0 0 24 24" fill="#e67e22" style="vertical-align:middle;margin-right:2px;"><path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/></svg>${r.kalorien||0}&nbsp;kcal</span>
+            <span style="color:#2d5a27;white-space:nowrap;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2d5a27" stroke-width="2.5" style="vertical-align:middle;margin-right:2px;"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>${r.protein||0}g&nbsp;P</span>
+            <span style="color:#8B6914;white-space:nowrap;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#8B6914" stroke-width="2" style="vertical-align:middle;margin-right:2px;"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M8 12h8M12 8v8"/></svg>${r.carbs||0}g&nbsp;C</span>
+            <span style="color:#2980b9;white-space:nowrap;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2" style="vertical-align:middle;margin-right:2px;"><ellipse cx="12" cy="12" rx="10" ry="6"/></svg>${r.fett||0}g&nbsp;F</span>
+            <span style="color:#888;font-size:11px;white-space:nowrap;">pro ${r.portionen||1} ${r.einheit||'Portion'}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0;" onclick="event.stopPropagation()">
+          <button class="btn btn-warning btn-sm" onclick="openRecipeModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">&#9998;</button>
+          <button class="btn btn-accent btn-sm" onclick="openAddRecipeModal(${r.id})">+</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteRecipe(${r.id})">&#10005;</button>
+        </div>
+      </div>
+      <div id="recipe-detail-${r.id}" style="display:none;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2);">
+        <div style="font-size:12px;color:var(--text2);line-height:1.6;">${esc(r.zutaten)}</div>
+        ${r.sat_fat?`<div style="font-size:11px;color:var(--text3);margin-top:4px;">Fettsauren: ${r.sat_fat}g gesattigt · ${r.unsat_fat||0}g ungesattigt</div>`:''}
+      </div>
+    </div>`).join('');
+   data.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.name;sel.appendChild(o);});
 }
 async function saveRecipe(){
   const name=document.getElementById('recipe-name').value.trim(),ing=document.getElementById('recipe-ingredients').value.trim(),p=parseFloat(document.getElementById('recipe-portionen').value)||1,unit=document.getElementById('recipe-unit').value||'portion';
