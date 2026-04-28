@@ -200,15 +200,8 @@ select:focus { border-color: var(--accent) !important; }
       </div>
       <div class="field">
         <label>Einheit</label>
-        <select id="add-recipe-unit-display" class="inline-input" onchange="updateRecipePreview()">
-          <option value="same">Gleiche Einheit</option>
-          <option value="portion">Portion(en)</option>
-          <option value="g">Gramm (g)</option>
-          <option value="ml">Milliliter (ml)</option>
-          <option value="stueck">Stueck</option>
-          <option value="el">Essloeffel (EL)</option>
-          <option value="tl">Teeloffel (TL)</option>
-        </select>
+        <div id="add-recipe-unit-label" style="padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text2);font-size:14px;">–</div>
+        <input type="hidden" id="add-recipe-unit-display" value="same">
       </div>
     </div>
     <div class="field">
@@ -1002,7 +995,9 @@ function openAddRecipeModal(id){
   document.getElementById('add-recipe-info').innerHTML=
     `<strong>${esc(r.name)}</strong><br>Rezept fuer <strong>${r.portionen} ${r.einheit||'Portion'}</strong>: ${r.kalorien||0} kcal &middot; ${r.protein||0}g P &middot; ${r.carbs||0}g C &middot; ${r.fett||0}g F`;
   document.getElementById('add-recipe-amount').value=r.portionen||1;
-  document.getElementById('add-recipe-unit-display').value='same';
+  document.getElementById('add-recipe-unit-display').value=r.einheit||'Portion';
+  const unitLabel=document.getElementById('add-recipe-unit-label');
+  if(unitLabel)unitLabel.textContent=r.einheit||'Portion';
   document.getElementById('add-recipe-status').textContent='';
   // Set meal type from dashboard if available
   const dashType=document.getElementById('quick-meal-type')?.value;
@@ -1041,8 +1036,7 @@ async function confirmAddRecipe(){
   const r=_recipesCache.find(x=>x.id===id);
   if(!r)return;
   const amount=parseFloat(document.getElementById('add-recipe-amount').value)||parseFloat(r.portionen)||1;
-  const unitSel=document.getElementById('add-recipe-unit-display').value;
-  const unit=unitSel==='same'?(r.einheit||'Portion'):unitSel;
+  const unit=r.einheit||'Portion';
   const base=parseFloat(r.portionen)||1;
   const scale=amount/base;
   const type=document.getElementById('add-recipe-meal-type').value;
