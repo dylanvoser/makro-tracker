@@ -1004,7 +1004,7 @@ async function deleteMeal(id){
 }
 
 // EDIT MODAL
-async async function openEditModal(mOrId){
+async function openEditModal(mOrId){
   let m = (typeof mOrId==='number'||!isNaN(parseInt(mOrId))) ? _mealsCache.find(x=>x.id===parseInt(mOrId)) : mOrId;
   if(!m){console.error('Meal not found in cache:', mOrId); return;}
   if(typeof m==='string')m=JSON.parse(m);
