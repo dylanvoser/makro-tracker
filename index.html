@@ -220,10 +220,16 @@ select, .select-styled {
   <div style="background:var(--surface);border-radius:24px;padding:2.5rem;width:100%;max-width:380px;border:1px solid var(--border);text-align:center;">
     <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:var(--accent);margin-bottom:4px;">NutriTrack</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:2rem;">Privater Bereich — Zugangscode erforderlich</div>
-    <div style="margin-bottom:1rem;">
+    <div style="margin-bottom:1rem;position:relative;">
       <input type="password" id="access-code-input" placeholder="Zugangscode eingeben" 
-        style="width:100%;padding:13px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;text-align:center;letter-spacing:4px;"
+        style="width:100%;padding:13px 42px 13px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;text-align:center;letter-spacing:4px;"
         onkeydown="if(event.key==='Enter')checkAccessCode()">
+      <button onclick="toggleAccessCodeVisibility()" type="button"
+        style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2);padding:4px;">
+        <svg id="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
     </div>
     <button onclick="checkAccessCode()" style="width:100%;padding:13px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-family:'Syne',sans-serif;font-size:15px;font-weight:600;cursor:pointer;">Zugang</button>
     <div id="access-error" style="font-size:13px;color:var(--danger);margin-top:10px;display:none;">Falscher Code. Bitte erneut versuchen.</div>
@@ -530,6 +536,19 @@ select, .select-styled {
 // ========== ACCESS CODE ==========
 const ACCESS_KEY = 'nutritrack_access_granted';
 
+
+function toggleAccessCodeVisibility(){
+  const input = document.getElementById('access-code-input');
+  const icon = document.getElementById('eye-icon');
+  if(input.type === 'password'){
+    input.type = 'text';
+    icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    input.type = 'password';
+    icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
+
 function checkAccessCode(){
   const input = document.getElementById('access-code-input').value.trim();
   fetch('/.netlify/functions/access', {
@@ -538,7 +557,7 @@ function checkAccessCode(){
     body: JSON.stringify({code: input})
   }).then(r => r.json()).then(data => {
     if(data.ok){
-      sessionStorage.setItem(ACCESS_KEY, '1');
+      localStorage.setItem(ACCESS_KEY, '1');
       document.getElementById('access-screen').style.display = 'none';
       document.getElementById('auth-screen').style.display = 'flex';
     } else {
@@ -547,15 +566,16 @@ function checkAccessCode(){
       document.getElementById('access-code-input').value = '';
       document.getElementById('access-code-input').focus();
     }
-  }).catch(() => {
+  }).catch((e) => {
+    console.error('Access check failed:', e);
     const err = document.getElementById('access-error');
-    err.textContent = 'Verbindungsfehler. Bitte erneut versuchen.';
+    err.textContent = 'Verbindungsfehler. Seite neu laden und erneut versuchen.';
     err.style.display = 'block';
   });
 }
 
 function checkAccess(){
-  if(sessionStorage.getItem(ACCESS_KEY)) return true;
+  if(localStorage.getItem(ACCESS_KEY)) return true;
   document.getElementById('loading').style.display = 'none';
   document.getElementById('access-screen').style.display = 'flex';
   document.getElementById('auth-screen').style.display = 'none';
