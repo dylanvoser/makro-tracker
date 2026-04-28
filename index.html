@@ -526,6 +526,44 @@ select, .select-styled {
 </div>
 
 <script>
+
+// ========== ACCESS CODE ==========
+const ACCESS_KEY = 'nutritrack_access_granted';
+
+function checkAccessCode(){
+  const input = document.getElementById('access-code-input').value.trim();
+  fetch('/.netlify/functions/access', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({code: input})
+  }).then(r => r.json()).then(data => {
+    if(data.ok){
+      sessionStorage.setItem(ACCESS_KEY, '1');
+      document.getElementById('access-screen').style.display = 'none';
+      document.getElementById('auth-screen').style.display = 'flex';
+    } else {
+      const err = document.getElementById('access-error');
+      err.style.display = 'block';
+      document.getElementById('access-code-input').value = '';
+      document.getElementById('access-code-input').focus();
+    }
+  }).catch(() => {
+    const err = document.getElementById('access-error');
+    err.textContent = 'Verbindungsfehler. Bitte erneut versuchen.';
+    err.style.display = 'block';
+  });
+}
+
+function checkAccess(){
+  if(sessionStorage.getItem(ACCESS_KEY)) return true;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('access-screen').style.display = 'flex';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  return false;
+}
+// ===================================
+
 const SB_URL='https://rqlmzeoofxutrwmwyres.supabase.co'; // anon key is public by design
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbG16ZW9vZnh1dHJ3bXd5cmVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDIwOTMsImV4cCI6MjA5MjYxODA5M30.mE8EfI-W5LkXxLhpMJ1jel4dSZfwmyMeByUA-zqoD0Q';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,storageKey:'nutritrack_session',storage:window.localStorage}});
