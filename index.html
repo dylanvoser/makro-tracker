@@ -43,7 +43,7 @@ const SB_URL='https://rqlmzeoofxutrwmwyres.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbG16ZW9vZnh1dHJ3bXd5cmVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDIwOTMsImV4cCI6MjA5MjYxODA5M30.mE8EfI-W5LkXxLhpMJ1jel4dSZfwmyMeByUA-zqoD0Q';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'nutritrack_session'}});
 const $=id=>document.getElementById(id);const today=()=>new Date().toISOString().slice(0,10);const n=v=>Number.isFinite(Number(v))?Number(v):0;const fmt=v=>Number(n(v).toFixed(1));
-let currentUser=null,profile=null,recipes=[],meals=[],calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),selectedDay=null,initDone=false,currentPage='dashboard';
+let currentUser=null,profile=null,recipes=[],meals=[],calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),selectedDay=null,initDone=false,initInProgress=false,currentPage='dashboard';
 const activities=[['sitzend','Sitzend'],['leicht','Leicht'],['mittel','Mittel'],['aktiv','Aktiv'],['sehr_aktiv','Sehr aktiv'],['sonstiges','Sonstiges']];
 function showLoading(t='Wird geladen...'){$('loading-text').textContent=t;$('loading').classList.remove('hidden')}function hideLoading(){$('loading').classList.add('hidden')}function toast(id,msg,ok=true){$(id).textContent=msg;$(id).className='msg '+(ok?'ok':'err');setTimeout(()=>{$(id).textContent=''},3000)}
 function mealOpts(){return `<option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option>`}
@@ -58,8 +58,26 @@ function authTab(t){$('login-tab').classList.toggle('active',t==='login');$('reg
 async function login(){showLoading('Anmelden...');const {error}=await sb.auth.signInWithPassword({email:$('login-email').value.trim(),password:$('login-pw').value});hideLoading();if(error)toast('auth-msg',error.message,false)}
 async function register(){showLoading('Konto erstellen...');const name=$('reg-name').value.trim();const {data,error}=await sb.auth.signUp({email:$('reg-email').value.trim(),password:$('reg-pw').value});if(error){hideLoading();toast('auth-msg',error.message,false);return}if(data.user)await sb.from('profiles').upsert({id:data.user.id,name});hideLoading();toast('auth-msg','Konto erstellt. Du kannst dich anmelden.');authTab('login')}
 async function logout(){await sb.auth.signOut()}
-async function initApp(){if(!currentUser)return;showLoading('Profil laden...');$('auth').classList.add('hidden');$('app').style.display='block';await loadProfile();await Promise.all([loadRecipes(),loadDashboard(),renderCalendar()]);initDone=true;hideLoading()}
-async function softRefresh(){if(!initDone)return;try{if(currentPage==='dashboard')await loadDashboard();else if(currentPage==='mahlzeiten')await loadMeals();else if(currentPage==='rezepte')await loadRecipes();else if(currentPage==='kalender')await renderCalendar()}catch(e){console.warn(e)}}
+async function initApp(){
+  if(!currentUser)return;
+  if(initDone){hideLoading();return;}
+  if(initInProgress)return;
+  initInProgress=true;
+  showLoading('Profil laden...');
+  try{
+    $('auth').classList.add('hidden');
+    $('app').style.display='block';
+    await loadProfile();
+    await Promise.all([loadRecipes(),loadDashboard(),renderCalendar()]);
+    initDone=true;
+  }catch(e){
+    console.error('Init failed:',e);
+  }finally{
+    initInProgress=false;
+    hideLoading();
+  }
+}
+async function softRefresh(){if(!initDone||initInProgress)return;try{if(currentPage==='dashboard')await loadDashboard();else if(currentPage==='mahlzeiten')await loadMeals();else if(currentPage==='rezepte')await loadRecipes();else if(currentPage==='kalender')await renderCalendar()}catch(e){console.warn(e)}finally{hideLoading()}}
 async function loadProfile(){const {data}=await sb.from('profiles').select('*').eq('id',currentUser.id).maybeSingle();profile=data||{};$('dash-name').textContent=(profile.name||currentUser.email||'–').split(' ')[0];$('avatar').textContent=(profile.name||currentUser.email||'?').slice(0,2).toUpperCase();const map={name:'p-name',age:'p-age',gender:'p-gender',height_cm:'p-height',weight_kg:'p-weight',activity_level:'p-activity',goal:'p-goal',water_goal_ml:'p-water'};Object.entries(map).forEach(([k,id])=>{if(profile[k]!=null)$(id).value=profile[k]});calcTDEE();}
 async function saveProfile(){const p={id:currentUser.id,name:$('p-name').value.trim(),age:parseInt($('p-age').value)||null,gender:$('p-gender').value||null,height_cm:parseInt($('p-height').value)||null,weight_kg:parseFloat($('p-weight').value)||null,activity_level:$('p-activity').value||'mittel',goal:$('p-goal').value||'halten',water_goal_ml:parseInt($('p-water').value)||2500,updated_at:new Date().toISOString()};const {error}=await sb.from('profiles').upsert(p);if(error)toast('profile-status',error.message,false);else{profile=p;toast('profile-status','Gespeichert');await loadDashboard()}}
 function dayActivity(){return localStorage.getItem('activity_'+today())||profile?.activity_level||'mittel'}function dayManual(){return parseInt(localStorage.getItem('manual_burn_'+today()))||0}
