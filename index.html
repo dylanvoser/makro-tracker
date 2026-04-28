@@ -186,6 +186,57 @@ select:focus { border-color: var(--accent) !important; }
 </div>
 
 
+
+<!-- Recipe Add Modal -->
+<div id="recipe-add-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeRecipeAddModal()">
+  <div class="modal">
+    <div class="modal-title">Rezept hinzufuegen</div>
+    <input type="hidden" id="add-recipe-id">
+    <div id="add-recipe-info" style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:1rem;font-size:13px;color:var(--text2);"></div>
+    <div class="grid-2" style="margin-bottom:1rem;">
+      <div class="field">
+        <label>Menge</label>
+        <input type="number" id="add-recipe-amount" class="inline-input" placeholder="z.B. 250" step="0.1" oninput="updateRecipePreview()">
+      </div>
+      <div class="field">
+        <label>Einheit</label>
+        <select id="add-recipe-unit-display" class="inline-input" onchange="updateRecipePreview()">
+          <option value="same">Gleiche Einheit</option>
+          <option value="portion">Portion(en)</option>
+          <option value="g">Gramm (g)</option>
+          <option value="ml">Milliliter (ml)</option>
+          <option value="stueck">Stueck</option>
+          <option value="el">Essloeffel (EL)</option>
+          <option value="tl">Teeloffel (TL)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Mahlzeit-Typ</label>
+      <select id="add-recipe-meal-type" class="inline-input">
+        <option value="fruehstueck">Fruehstueck</option>
+        <option value="mittagessen" selected>Mittagessen</option>
+        <option value="abendessen">Abendessen</option>
+        <option value="snack">Snack</option>
+      </select>
+    </div>
+    <div id="recipe-macro-preview" style="background:var(--accent-light);border-radius:var(--radius-sm);padding:12px;margin-bottom:1rem;display:none;">
+      <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;">Vorschau Makros</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:13px;">
+        <span id="prev-kal" style="color:#e67e22;white-space:nowrap;"></span>
+        <span id="prev-p" style="color:#2d5a27;white-space:nowrap;"></span>
+        <span id="prev-c" style="color:#8B6914;white-space:nowrap;"></span>
+        <span id="prev-f" style="color:#2980b9;white-space:nowrap;"></span>
+      </div>
+    </div>
+    <div class="flex-gap">
+      <button class="btn btn-accent" onclick="confirmAddRecipe()">Hinzufuegen</button>
+      <button class="btn btn-danger" onclick="closeRecipeAddModal()">Abbrechen</button>
+    </div>
+    <div id="add-recipe-status" style="font-size:13px;color:var(--text2);margin-top:8px;"></div>
+  </div>
+</div>
+
 <!-- Recipe Edit Modal -->
 <div id="recipe-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeRecipeModal()">
   <div class="modal">
@@ -942,35 +993,82 @@ function openEditModal(m){
 }
 function closeModal(){document.getElementById('edit-modal').style.display='none';}
 
-// ========== RECIPE FUNCTIONS ==========
 
+// ========== RECIPE ADD MODAL ==========
 function openAddRecipeModal(id){
-  const r = _recipesCache ? _recipesCache.find(x=>x.id===id) : null;
-  if(!r) return;
-  const amount = prompt(`Menge eingeben (Rezept ist fuer ${r.portionen} ${r.einheit||'Portion'}):`);
-  if(!amount) return;
-  const type = document.getElementById('quick-meal-type')?.value || 'mittagessen';
-  // Parse amount and scale
-  const inputNum = parseFloat(amount);
-  const baseNum = parseFloat(r.portionen) || 1;
-  const scale = inputNum / baseNum;
-  sb.from('mahlzeiten').insert({
-    user_id: currentUser.id,
-    datum: today(),
-    mahlzeit_typ: type,
-    beschreibung: r.name + ' (' + amount + ' ' + (r.einheit||'Portion') + ')',
-    kalorien: Math.round((r.kalorien||0) * scale),
-    protein: Math.round((r.protein||0) * scale * 10) / 10,
-    carbs: Math.round((r.carbs||0) * scale * 10) / 10,
-    fett: Math.round((r.fett||0) * scale * 10) / 10,
-    sat_fat: Math.round((r.sat_fat||0) * scale * 10) / 10,
-    unsat_fat: Math.round((r.unsat_fat||0) * scale * 10) / 10,
-    rezept_id: r.id
-  }).then(()=>{
-    showPage('dashboard');
-    loadDashboard();
-  });
+  const r=_recipesCache.find(x=>x.id===id);
+  if(!r)return;
+  document.getElementById('add-recipe-id').value=id;
+  document.getElementById('add-recipe-info').innerHTML=
+    `<strong>${esc(r.name)}</strong><br>Rezept fuer <strong>${r.portionen} ${r.einheit||'Portion'}</strong>: ${r.kalorien||0} kcal &middot; ${r.protein||0}g P &middot; ${r.carbs||0}g C &middot; ${r.fett||0}g F`;
+  document.getElementById('add-recipe-amount').value=r.portionen||1;
+  document.getElementById('add-recipe-unit-display').value='same';
+  document.getElementById('add-recipe-status').textContent='';
+  // Set meal type from dashboard if available
+  const dashType=document.getElementById('quick-meal-type')?.value;
+  if(dashType)document.getElementById('add-recipe-meal-type').value=dashType;
+  document.getElementById('recipe-add-modal').style.display='flex';
+  updateRecipePreview();
 }
+
+function openAddRecipeFromDash(){
+  const sel=document.getElementById('quick-recipe-select');
+  const id=parseInt(sel.value);
+  if(!id){alert('Bitte zuerst ein Rezept auswaehlen');return;}
+  openAddRecipeModal(id);
+}
+function closeRecipeAddModal(){document.getElementById('recipe-add-modal').style.display='none';}
+
+function updateRecipePreview(){
+  const id=parseInt(document.getElementById('add-recipe-id').value);
+  const r=_recipesCache.find(x=>x.id===id);
+  if(!r)return;
+  const amount=parseFloat(document.getElementById('add-recipe-amount').value)||parseFloat(r.portionen)||1;
+  const base=parseFloat(r.portionen)||1;
+  const scale=amount/base;
+  const prev=document.getElementById('recipe-macro-preview');
+  if(scale&&amount){
+    prev.style.display='block';
+    document.getElementById('prev-kal').textContent='\uD83D\uDD25 '+Math.round((r.kalorien||0)*scale)+' kcal';
+    document.getElementById('prev-p').textContent='\u2764 '+Math.round((r.protein||0)*scale*10)/10+'g P';
+    document.getElementById('prev-c').textContent='\u2295 '+Math.round((r.carbs||0)*scale*10)/10+'g C';
+    document.getElementById('prev-f').textContent='\u25CB '+Math.round((r.fett||0)*scale*10)/10+'g F';
+  } else prev.style.display='none';
+}
+
+async function confirmAddRecipe(){
+  const id=parseInt(document.getElementById('add-recipe-id').value);
+  const r=_recipesCache.find(x=>x.id===id);
+  if(!r)return;
+  const amount=parseFloat(document.getElementById('add-recipe-amount').value)||parseFloat(r.portionen)||1;
+  const unitSel=document.getElementById('add-recipe-unit-display').value;
+  const unit=unitSel==='same'?(r.einheit||'Portion'):unitSel;
+  const base=parseFloat(r.portionen)||1;
+  const scale=amount/base;
+  const type=document.getElementById('add-recipe-meal-type').value;
+  const st=document.getElementById('add-recipe-status');
+  st.textContent='Wird gespeichert...';
+  const{error}=await sb.from('mahlzeiten').insert({
+    user_id:currentUser.id,datum:today(),mahlzeit_typ:type,
+    beschreibung:r.name+' ('+amount+' '+unit+')',
+    kalorien:Math.round((r.kalorien||0)*scale),
+    protein:Math.round((r.protein||0)*scale*10)/10,
+    carbs:Math.round((r.carbs||0)*scale*10)/10,
+    fett:Math.round((r.fett||0)*scale*10)/10,
+    sat_fat:Math.round((r.sat_fat||0)*scale*10)/10,
+    unsat_fat:Math.round((r.unsat_fat||0)*scale*10)/10,
+    rezept_id:r.id
+  });
+  if(error){st.textContent='Fehler: '+error.message;}
+  else{
+    closeRecipeAddModal();
+    showPage('dashboard');
+    await loadDashboard();
+  }
+}
+// =======================================
+
+// ========== RECIPE FUNCTIONS ==========
 let _recipesCache = [];
 
 function toggleRecipe(id){
