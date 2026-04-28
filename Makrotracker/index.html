@@ -2,7 +2,13 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="NutriTrack">
+<meta name="theme-color" content="#2d5a27">
+<link rel="manifest" href="/manifest.json">
 <title>NutriTrack — KI Makro Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -106,6 +112,34 @@ textarea.big:focus{border-color:var(--accent);}
 .flex-between{display:flex;align-items:center;justify-content:space-between;}
 .flex-gap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 @media(max-width:700px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}.page{padding:1rem;}.app-header{padding:0 1rem;}.header-nav{display:none;}}
+
+/* Mobile bottom nav */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:100;padding-bottom:env(safe-area-inset-bottom);}
+.bottom-nav-inner{display:flex;height:56px;}
+.bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:transparent;color:var(--text3);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;transition:color .15s;padding:0;}
+.bnav-btn.active{color:var(--accent);}
+.bnav-btn svg{width:22px;height:22px;}
+.bnav-icon{font-size:20px;line-height:1;}
+@media(max-width:700px){
+  .bottom-nav{display:block;}
+  .header-nav{display:none !important;}
+  .page{padding:1rem;padding-bottom:80px !important;}
+  .app-header{padding:0 1rem;}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr !important;}
+  .input-row{flex-direction:column;}
+  .input-row select,.input-row input{width:100%;}
+  .btn{width:100%;margin-bottom:4px;}
+  .flex-gap{flex-wrap:wrap;}
+  .flex-gap .btn{width:auto;margin-bottom:0;}
+  .ring-container{width:120px;height:120px;}
+  .ring-container svg{width:120px;height:120px;}
+  .activity-selector{gap:4px;}
+  .activity-btn{padding:5px 8px;font-size:11px;}
+  .meal-macros{flex-direction:row;flex-wrap:wrap;}
+  .card{padding:1rem;}
+  .modal{margin:0;border-radius:var(--radius) var(--radius) 0 0;position:fixed;bottom:0;left:0;right:0;max-width:100%;max-height:85vh;}
+  .modal-overlay{align-items:flex-end;}
+}
 </style>
 </head>
 <body>
@@ -191,6 +225,28 @@ textarea.big:focus{border-color:var(--accent);}
 </div>
 
 <!-- App -->
+
+  <!-- Bottom Nav (mobile) -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <button class="bnav-btn active" data-page="dashboard" onclick="showPage('dashboard')">
+        <span class="bnav-icon">🏠</span><span>Home</span>
+      </button>
+      <button class="bnav-btn" data-page="mahlzeiten" onclick="showPage('mahlzeiten')">
+        <span class="bnav-icon">🍽</span><span>Mahlzeiten</span>
+      </button>
+      <button class="bnav-btn" data-page="rezepte" onclick="showPage('rezepte')">
+        <span class="bnav-icon">📋</span><span>Rezepte</span>
+      </button>
+      <button class="bnav-btn" data-page="kalender" onclick="showPage('kalender')">
+        <span class="bnav-icon">📅</span><span>Kalender</span>
+      </button>
+      <button class="bnav-btn" data-page="profil" onclick="showPage('profil')">
+        <span class="bnav-icon">👤</span><span>Profil</span>
+      </button>
+    </div>
+  </nav>
+
 <div id="app">
   <header class="app-header">
     <div class="header-logo">NutriTrack</div>
@@ -287,9 +343,9 @@ textarea.big:focus{border-color:var(--accent);}
       <div class="ki-badge">✦ KI-Analyse</div>
       <div class="card-title">Mahlzeit erfassen</div>
       <textarea class="big" id="quick-meal-input" placeholder="z.B. '200g Hähnchenbrust mit 150g Basmatireis und gemischtem Salat mit Olivenöl'"></textarea>
-      <div class="input-row">
-        <select id="quick-meal-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
-        <select id="quick-recipe-select"><option value="">Rezept wählen (optional)</option></select>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+        <div style="display:flex;gap:8px;"><select id="quick-meal-type" style="flex:1;"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
+        <select id="quick-recipe-select" style="flex:1;"><option value="">Rezept wählen</option></select></div>
         <button class="btn btn-accent" id="add-meal-btn" onclick="addMealFromDash()">Analysieren & Speichern</button>
       </div>
       <div class="tooltip" id="meal-status"></div>
@@ -425,7 +481,7 @@ textarea.big:focus{border-color:var(--accent);}
 <script>
 const SB_URL='https://rqlmzeoofxutrwmwyres.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxbG16ZW9vZnh1dHJ3bXd5cmVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDIwOTMsImV4cCI6MjA5MjYxODA5M30.mE8EfI-W5LkXxLhpMJ1jel4dSZfwmyMeByUA-zqoD0Q';
-const sb=supabase.createClient(SB_URL,SB_KEY);
+const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,storageKey:'nutritrack_session',storage:window.localStorage}});
 let currentUser=null,userProfile=null,calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),selectedCalDate=null;
 let dayActivity=localStorage.getItem('day_activity_'+today())||'mittel';
 
@@ -444,6 +500,17 @@ document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('meal-date').value=today();
   document.getElementById('filter-date').value=today();
   setActivityUI(dayActivity);
+
+  // Auto-refresh beim Tab-Wechsel zurück
+  document.addEventListener('visibilitychange',async()=>{
+    if(document.visibilityState!=='visible'||!currentUser)return;
+    const{data:{session}}=await sb.auth.getSession();
+    if(session){currentUser=session.user;await loadDashboard();}
+    else{currentUser=null;document.getElementById('app').style.display='none';document.getElementById('auth-screen').style.display='flex';}
+  });
+
+  // PWA Service Worker
+  if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 });
 
 async function initApp(){
@@ -861,6 +928,7 @@ async function analyzeMacros(desc){
 
 // NAV
 function showPage(n){
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===n));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+n).classList.add('active');
