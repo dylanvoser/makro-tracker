@@ -1265,7 +1265,7 @@ async function loadMeals(){
 }
 
 // RECIPES
-async async function loadRecipes(){
+async function loadRecipes(){
   const{data}=await sb.from('rezepte').select('*').eq('user_id',currentUser.id).order('name');
   const list=document.getElementById('recipe-list'),sel=document.getElementById('quick-recipe-select');
   while(sel.options.length>1)sel.remove(1);
