@@ -731,7 +731,7 @@ async function register(){
   if(data.user)await sb.from('profiles').upsert({id:data.user.id,name});
   hideLoading();showAuthMsg('Konto erstellt!','ok');switchAuthTab('login');
 }
-async function logout(){await sb.auth.signOut();}
+async function logout(){_appInitialized=false;await sb.auth.signOut();}
 function showAuthMsg(msg,type){const el=document.getElementById('auth-msg');el.textContent=msg;el.className='auth-msg '+type;el.style.display='block';}
 
 // PROFILE
@@ -819,6 +819,7 @@ async function loadDashboard(){
   ]);
   const meals=mr.data||[],water=wr.data||[];
   const t=meals.reduce((a,m)=>({kal:a.kal+(m.kalorien||0),p:a.p+(m.protein||0),c:a.c+(m.carbs||0),f:a.f+(m.fett||0),sf:a.sf+(m.sat_fat||0),uf:a.uf+(m.unsat_fat||0)}),{kal:0,p:0,c:0,f:0,sf:0,uf:0});
+  const goal=parseInt(document.getElementById('kal-goal').textContent)||2000;
   document.getElementById('kal-consumed').textContent=Math.round(t.kal);
   // Deficit/surplus
   const defEl=document.getElementById('kal-deficit');
@@ -834,7 +835,6 @@ async function loadDashboard(){
   document.getElementById('f-val').textContent=Math.round(t.f)+'g';
   document.getElementById('sat-val').textContent=Math.round(t.sf)+'g';
   document.getElementById('unsat-val').textContent=Math.round(t.uf)+'g';
-  const goal=parseInt(document.getElementById('kal-goal').textContent)||2000;
   document.getElementById('kal-ring').style.strokeDashoffset=364.4-(364.4*Math.min(100,(t.kal/goal)*100)/100);
   const pG=(userProfile?.weight_kg||70)*1.8,cG=(goal*.45)/4,fG=(goal*.30)/9;
   document.getElementById('p-bar').style.width=Math.min(100,(t.p/pG)*100)+'%';
