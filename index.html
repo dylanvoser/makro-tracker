@@ -153,6 +153,27 @@ select, .select-styled {
   cursor: pointer;
 }
 .field select { background-color: var(--surface2); }
+
+/* Uniform select/dropdown styling */
+select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-color: var(--surface2) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b6b60' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding: 10px 36px 10px 14px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  outline: none !important;
+  width: 100% !important;
+}
+select:focus { border-color: var(--accent) !important; }
+
 </style>
 </head>
 <body>
@@ -559,7 +580,11 @@ function checkAccessCode(){
     if(data.ok){
       localStorage.setItem(ACCESS_KEY, '1');
       document.getElementById('access-screen').style.display = 'none';
-      document.getElementById('auth-screen').style.display = 'flex';
+      // Check if already logged in
+      sb.auth.getSession().then(({data:{session}})=>{
+        if(session){currentUser=session.user;initApp();}
+        else{document.getElementById('auth-screen').style.display='flex';}
+      });
     } else {
       const err = document.getElementById('access-error');
       err.style.display = 'block';
@@ -576,10 +601,10 @@ function checkAccessCode(){
 
 function checkAccess(){
   if(localStorage.getItem(ACCESS_KEY)) return true;
-  document.getElementById('loading').style.display = 'none';
+  hideLoading();
   document.getElementById('access-screen').style.display = 'flex';
   document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'none';
+  if(document.getElementById('app')) document.getElementById('app').style.display = 'none';
   return false;
 }
 // ===================================
@@ -609,23 +634,21 @@ document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('filter-date').value=today();
   setActivityUI(dayActivity||'mittel');
 
-  // Bulletproof Tab/App refresh
+  // Tab/App refresh - only refresh data, never re-init
   let _refreshTimer=null;
   const refreshOnVisible=async()=>{
-    if(_refreshTimer)return; // debounce
-    _refreshTimer=setTimeout(()=>{_refreshTimer=null;},2000);
+    if(_refreshTimer)return;
+    _refreshTimer=setTimeout(()=>{_refreshTimer=null;},3000);
     if(!currentUser)return;
+    if(document.getElementById('app').style.display==='none')return;
     try{
-      const{data:{session}}=await sb.auth.getSession();
-      if(session){
-        currentUser=session.user;
-        // Only reload data, don't re-init entire app
-        if(document.getElementById('page-dashboard').classList.contains('active'))await loadDashboard();
-      }
-    }catch(e){console.log('refresh err',e);}
+      // Just refresh dashboard data silently
+      await loadDashboard();
+    }catch(e){}
   };
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshOnVisible();});
-  window.addEventListener('focus',()=>setTimeout(refreshOnVisible,300));
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')setTimeout(refreshOnVisible,500);
+  });
 
   // PWA Service Worker
   if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
@@ -728,7 +751,7 @@ function setDayActivitySelect(){
   dayActivity=val;
   localStorage.setItem('day_activity_'+today(),val);
   const manualDiv=document.getElementById('dash-manual-cal');
-  if(manualDiv)manualDiv.style.display=val==='sonstiges'?'flex':'none';
+  if(manualDiv)manualDiv.style.display=val==='sonstiges'?'block':'none';
   calcTDEE(val==='sonstiges'?'manuell':val);
   loadDashboard();
 }
@@ -825,7 +848,7 @@ function renderMealsList(meals,containerId){
         <div style="flex:1;">
           <span class="meal-type-badge badge-${m.mahlzeit_typ}">${tm[m.mahlzeit_typ]||m.mahlzeit_typ}</span>
           <div style="font-size:13px;color:var(--text);margin:4px 0;">${esc(m.beschreibung)}</div>
-          <div class="meal-macros">
+          <div class="meal-macros" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;width:100%;">
             <span><span style="color:#e67e22;white-space:nowrap;"><svg width="11" height="11" viewBox="0 0 24 24" fill="#e67e22" style="vertical-align:middle;margin-right:2px;"><path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/></svg>${m.kalorien||0}&nbsp;kcal</span>
             <span style="color:#2d5a27;white-space:nowrap;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2d5a27" stroke-width="2.5" style="vertical-align:middle;margin-right:2px;"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>${m.protein||0}&thinsp;g P</span>
             <span style="color:#8B6914;white-space:nowrap;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8B6914" stroke-width="2" style="vertical-align:middle;margin-right:2px;"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M8 12h8M12 8v8"/></svg>${m.carbs||0}&thinsp;g C</span>
