@@ -185,6 +185,48 @@ select:focus { border-color: var(--accent) !important; }
   </div>
 </div>
 
+
+<!-- Recipe Edit Modal -->
+<div id="recipe-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeRecipeModal()">
+  <div class="modal">
+    <div class="modal-title">Rezept bearbeiten</div>
+    <input type="hidden" id="edit-recipe-id">
+    <div class="field"><label>Name</label><input type="text" id="edit-recipe-name" class="inline-input"></div>
+    <div class="field"><label>Zutaten</label><textarea class="big" id="edit-recipe-ingredients" style="min-height:80px;"></textarea></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div class="field" style="flex:1;min-width:80px;"><label>Menge</label><input type="number" id="edit-recipe-portionen" class="inline-input" step="0.1"></div>
+      <div class="field" style="flex:1;min-width:120px;"><label>Einheit</label>
+        <select id="edit-recipe-unit" class="inline-input">
+          <option value="portion">Portion(en)</option>
+          <option value="g">Gramm (g)</option>
+          <option value="ml">Milliliter (ml)</option>
+          <option value="stueck">Stueck</option>
+          <option value="el">Essloeffel (EL)</option>
+          <option value="tl">Teeloffel (TL)</option>
+          <option value="tasse">Tasse</option>
+          <option value="pkg">Packung</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid-4" style="gap:.5rem;margin-bottom:.75rem;">
+      <div class="field"><label>Kalorien</label><input type="number" id="edit-recipe-kal" class="inline-input"></div>
+      <div class="field"><label>Protein (g)</label><input type="number" id="edit-recipe-protein" class="inline-input"></div>
+      <div class="field"><label>Carbs (g)</label><input type="number" id="edit-recipe-carbs" class="inline-input"></div>
+      <div class="field"><label>Fett (g)</label><input type="number" id="edit-recipe-fett" class="inline-input"></div>
+    </div>
+    <div class="grid-2" style="gap:.5rem;margin-bottom:1rem;">
+      <div class="field"><label>Gesaettigt (g)</label><input type="number" id="edit-recipe-sat" class="inline-input"></div>
+      <div class="field"><label>Ungesaettigt (g)</label><input type="number" id="edit-recipe-unsat" class="inline-input"></div>
+    </div>
+    <div class="flex-gap">
+      <button class="btn btn-accent" onclick="saveEditRecipe()">Speichern</button>
+      <button class="btn" onclick="reanalyzeRecipe()">KI neu analysieren</button>
+      <button class="btn btn-danger" onclick="closeRecipeModal()">Abbrechen</button>
+    </div>
+    <div id="edit-recipe-status" style="font-size:13px;color:var(--text2);margin-top:8px;"></div>
+  </div>
+</div>
+
 <!-- Edit Meal Modal -->
 <div id="edit-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal()">
   <div class="modal">
@@ -345,7 +387,7 @@ select:focus { border-color: var(--accent) !important; }
             <circle cx="70" cy="70" r="58" fill="none" stroke="var(--surface2)" stroke-width="12"/>
             <circle cx="70" cy="70" r="58" fill="none" stroke="var(--accent)" stroke-width="12" stroke-dasharray="364.4" stroke-dashoffset="364.4" id="kal-ring" stroke-linecap="round"/>
           </svg>
-          <div class="ring-center"><div class="ring-val" id="kal-consumed">0</div><div class="ring-lbl">kcal</div></div>
+          <div class="ring-center"><div class="ring-val" id="kal-consumed">0</div><div class="ring-lbl">kcal</div><div id="kal-deficit" style="font-size:11px;margin-top:4px;font-weight:600;"></div></div>
         </div>
         <div style="flex:1;min-width:160px;">
           <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;">MAKROS HEUTE</div>
@@ -654,7 +696,10 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 });
 
+let _appInitialized=false;
 async function initApp(){
+  if(_appInitialized)return;
+  _appInitialized=true;
   setLoading('Profil laden...');
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app').style.display='block';
@@ -691,7 +736,7 @@ function showAuthMsg(msg,type){const el=document.getElementById('auth-msg');el.t
 
 // PROFILE
 async function loadProfile(){
-  const{data}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+  const{data}=await sb.from('profiles').select('*').eq('id',currentUser.id).maybeSingle();
   userProfile=data;
   if(data){
     ['p-name','p-age','p-gender','p-height','p-weight','p-activity','p-goal','p-water'].forEach(id=>{
@@ -775,6 +820,15 @@ async function loadDashboard(){
   const meals=mr.data||[],water=wr.data||[];
   const t=meals.reduce((a,m)=>({kal:a.kal+(m.kalorien||0),p:a.p+(m.protein||0),c:a.c+(m.carbs||0),f:a.f+(m.fett||0),sf:a.sf+(m.sat_fat||0),uf:a.uf+(m.unsat_fat||0)}),{kal:0,p:0,c:0,f:0,sf:0,uf:0});
   document.getElementById('kal-consumed').textContent=Math.round(t.kal);
+  // Deficit/surplus
+  const defEl=document.getElementById('kal-deficit');
+  if(defEl){
+    const diff=Math.round(t.kal-goal);
+    if(t.kal>0){
+      defEl.textContent=(diff>=0?'+':'')+diff+' kcal';
+      defEl.style.color=diff>200?'var(--danger)':diff<-100?'var(--info)':'var(--success)';
+    } else defEl.textContent='';
+  }
   document.getElementById('p-val').textContent=Math.round(t.p)+'g';
   document.getElementById('c-val').textContent=Math.round(t.c)+'g';
   document.getElementById('f-val').textContent=Math.round(t.f)+'g';
@@ -887,6 +941,67 @@ function openEditModal(m){
   document.getElementById('edit-modal').style.display='flex';
 }
 function closeModal(){document.getElementById('edit-modal').style.display='none';}
+
+// ========== RECIPE FUNCTIONS ==========
+function toggleRecipe(id){
+  const el=document.getElementById('recipe-detail-'+id);
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function openRecipeModal(r){
+  if(typeof r==='string')r=JSON.parse(r);
+  document.getElementById('edit-recipe-id').value=r.id;
+  document.getElementById('edit-recipe-name').value=r.name||'';
+  document.getElementById('edit-recipe-ingredients').value=r.zutaten||'';
+  document.getElementById('edit-recipe-portionen').value=r.portionen||1;
+  document.getElementById('edit-recipe-unit').value=r.einheit||'portion';
+  document.getElementById('edit-recipe-kal').value=r.kalorien||'';
+  document.getElementById('edit-recipe-protein').value=r.protein||'';
+  document.getElementById('edit-recipe-carbs').value=r.carbs||'';
+  document.getElementById('edit-recipe-fett').value=r.fett||'';
+  document.getElementById('edit-recipe-sat').value=r.sat_fat||'';
+  document.getElementById('edit-recipe-unsat').value=r.unsat_fat||'';
+  document.getElementById('edit-recipe-status').textContent='';
+  document.getElementById('recipe-modal').style.display='flex';
+}
+function closeRecipeModal(){document.getElementById('recipe-modal').style.display='none';}
+
+async function saveEditRecipe(){
+  const id=document.getElementById('edit-recipe-id').value;
+  const updates={
+    name:document.getElementById('edit-recipe-name').value,
+    zutaten:document.getElementById('edit-recipe-ingredients').value,
+    portionen:parseFloat(document.getElementById('edit-recipe-portionen').value)||1,
+    einheit:document.getElementById('edit-recipe-unit').value,
+    kalorien:parseInt(document.getElementById('edit-recipe-kal').value)||0,
+    protein:parseFloat(document.getElementById('edit-recipe-protein').value)||0,
+    carbs:parseFloat(document.getElementById('edit-recipe-carbs').value)||0,
+    fett:parseFloat(document.getElementById('edit-recipe-fett').value)||0,
+    sat_fat:parseFloat(document.getElementById('edit-recipe-sat').value)||0,
+    unsat_fat:parseFloat(document.getElementById('edit-recipe-unsat').value)||0,
+  };
+  await sb.from('rezepte').update(updates).eq('id',id).eq('user_id',currentUser.id);
+  closeRecipeModal();
+  await loadRecipes();
+}
+
+async function reanalyzeRecipe(){
+  const ing=document.getElementById('edit-recipe-ingredients').value;
+  if(!ing)return;
+  document.getElementById('edit-recipe-status').textContent='⏳ KI analysiert...';
+  const m=await analyzeMacros(ing);
+  if(m){
+    document.getElementById('edit-recipe-kal').value=m.kalorien||'';
+    document.getElementById('edit-recipe-protein').value=m.protein||'';
+    document.getElementById('edit-recipe-carbs').value=m.carbs||'';
+    document.getElementById('edit-recipe-fett').value=m.fett||'';
+    document.getElementById('edit-recipe-sat').value=m.sat_fat||'';
+    document.getElementById('edit-recipe-unsat').value=m.unsat_fat||'';
+    document.getElementById('edit-recipe-status').textContent='✓ Makros aktualisiert';
+  } else document.getElementById('edit-recipe-status').textContent='⚠ Analyse fehlgeschlagen';
+}
+// ======================================
+
 async function saveEditMeal(){
   const id=document.getElementById('edit-meal-id').value;
   await sb.from('mahlzeiten').update({beschreibung:document.getElementById('edit-meal-desc').value,mahlzeit_typ:document.getElementById('edit-meal-type').value,datum:document.getElementById('edit-meal-date').value,kalorien:parseInt(document.getElementById('edit-kal').value)||0,protein:parseFloat(document.getElementById('edit-protein').value)||0,carbs:parseFloat(document.getElementById('edit-carbs').value)||0,fett:parseFloat(document.getElementById('edit-fett').value)||0,sat_fat:parseFloat(document.getElementById('edit-sat-fat').value)||0,unsat_fat:parseFloat(document.getElementById('edit-unsat-fat').value)||0}).eq('id',id).eq('user_id',currentUser.id);
@@ -950,7 +1065,7 @@ async function saveRecipe(){
   else document.getElementById('recipe-status').textContent='⚠ API-Key in Profil eintragen!';
 }
 async function deleteRecipe(id){await sb.from('rezepte').delete().eq('id',id).eq('user_id',currentUser.id);await loadRecipes();}
-function useRecipe(id){document.getElementById('quick-recipe-select').value=id;showPage('dashboard');}
+function useRecipe(id){document.getElementById('quick-recipe-select').value=id;showPage('dashboard');document.getElementById('quick-meal-input').placeholder='Menge angeben z.B. 500ml oder 2 Portionen (optional)';}
 
 // CALENDAR
 function renderCalendar(){
@@ -980,7 +1095,7 @@ async function loadMonthStats(y,m){
   const s=`${y}-${String(m+1).padStart(2,'0')}-01`,e=`${y}-${String(m+1).padStart(2,'0')}-${new Date(y,m+1,0).getDate()}`;
   const[mr,sr]=await Promise.all([
     sb.from('mahlzeiten').select('*').eq('user_id',currentUser.id).gte('datum',s).lte('datum',e),
-    sb.from('monats_zusammenfassung').select('*').eq('user_id',currentUser.id).eq('jahr',y).eq('monat',m+1).single()
+    sb.from('monats_zusammenfassung').select('*').eq('user_id',currentUser.id).eq('jahr',y).eq('monat',m+1).maybeSingle()
   ]);
   const el=document.getElementById('month-stats');
   if(sr.data){
@@ -1075,7 +1190,12 @@ async function archiveMonth(year,month){
   const goal=parseInt(document.getElementById('kal-goal').textContent)||2000,gd=vals.filter(d=>Math.abs(d.kal-goal)<200).length;
   const wbd={};water.forEach(w=>{wbd[w.datum]=(wbd[w.datum]||0)+w.menge_ml;});
   const wv=Object.values(wbd),aw=wv.length?Math.round(wv.reduce((a,v)=>a+v,0)/wv.length):0;
-  await sb.from('monats_zusammenfassung').upsert({user_id:currentUser.id,jahr:year,monat:month,durchschnitt_kalorien:Math.round(avg('kal')),durchschnitt_protein:avg('p'),durchschnitt_carbs:avg('c'),durchschnitt_fett:avg('f'),durchschnitt_sat_fat:avg('sf'),durchschnitt_unsat_fat:avg('uf'),durchschnitt_wasser_ml:aw,ziel_erreicht_tage:gd,gesamt_tage:n,highlights:`Ø ${Math.round(avg('kal'))} kcal · ${avg('p')}g P · ${avg('c')}g C · ${avg('f')}g F (ges:${avg('sf')}g unges:${avg('uf')}g) · Ziel ${gd}/${n} Tagen erreicht`});
+  await sb.from('monats_zusammenfassung').upsert({user_id:currentUser.id,jahr:year,monat:month,durchschnitt_kalorien:Math.round(avg('kal')),durchschnitt_protein:avg('p'),durchschnitt_carbs:avg('c'),durchschnitt_fett:avg('f'),durchschnitt_sat_fat:avg('sf'),durchschnitt_unsat_fat:avg('uf'),durchschnitt_wasser_ml:aw,ziel_erreicht_tage:gd,gesamt_tage:n,highlights:(()=>{
+  const goalKal=parseInt(document.getElementById('kal-goal').textContent)||2000;
+  const diff=Math.round(avg('kal')-goalKal);
+  const diffStr=(diff>=0?'+':'')+diff+' kcal/Tag';
+  return `Ø ${Math.round(avg('kal'))} kcal (${diffStr}) · ${avg('p')}g P · ${avg('c')}g C · ${avg('f')}g F · Ziel ${gd}/${n} Tagen erreicht`;
+})()});
   await Promise.all([sb.from('mahlzeiten').delete().eq('user_id',currentUser.id).gte('datum',s).lte('datum',e),sb.from('wasser_log').delete().eq('user_id',currentUser.id).gte('datum',s).lte('datum',e)]);
   hideLoading();document.getElementById('archive-section').innerHTML='<div class="auth-msg ok" style="display:block;">Monat archiviert!</div>';renderCalendar();
 }
