@@ -971,6 +971,7 @@ function closeWaterModal(){document.getElementById('water-modal').style.display=
 
 // MEALS
 function renderMealsList(meals,containerId){
+  _mealsCache=[..._mealsCache.filter(m=>!meals.find(x=>x.id===m.id)),...meals];
   const el=document.getElementById(containerId);
   if(!meals.length){el.innerHTML='<div class="empty-state">Keine Mahlzeiten</div>';return;}
   const tm={fruehstueck:'Frühstück',mittagessen:'Mittagessen',abendessen:'Abendessen',snack:'Snack'};
@@ -990,7 +991,7 @@ function renderMealsList(meals,containerId){
           </div>
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;">
-          <button class="btn btn-warning btn-sm" onclick='openEditModal(${JSON.stringify(m)})'>✎</button>
+          <button class="btn btn-warning btn-sm" onclick='openEditModal(${m.id})'>✎</button>
           <button class="btn btn-danger btn-sm" onclick="deleteMeal(${m.id})">✕</button>
         </div>
       </div>
@@ -1003,7 +1004,9 @@ async function deleteMeal(id){
 }
 
 // EDIT MODAL
-async function openEditModal(m){
+async async function openEditModal(mOrId){
+  let m = (typeof mOrId==='number'||!isNaN(parseInt(mOrId))) ? _mealsCache.find(x=>x.id===parseInt(mOrId)) : mOrId;
+  if(!m){console.error('Meal not found in cache:', mOrId); return;}
   if(typeof m==='string')m=JSON.parse(m);
   document.getElementById('edit-meal-id').value=m.id;
   document.getElementById('edit-meal-rezept-id').value=m.rezept_id||'';
@@ -1038,7 +1041,7 @@ function closeModal(){document.getElementById('edit-modal').style.display='none'
 
 // ========== RECIPE ADD MODAL ==========
 function openAddRecipeModal(id, mealType){
-  const r=_recipesCache.find(x=>x.id===id);
+  const r=_recipesCache.find(x=>x.id===parseInt(id));
   if(!r)return;
   document.getElementById('add-recipe-id').value=id;
   document.getElementById('add-recipe-info').innerHTML=
@@ -1155,14 +1158,18 @@ function updateEditFromRecipe(){
 
 // ========== RECIPE FUNCTIONS ==========
 let _recipesCache = [];
+let _mealsCache = [];
 
 function toggleRecipe(id){
   const el=document.getElementById('recipe-detail-'+id);
   if(el)el.style.display=el.style.display==='none'?'block':'none';
 }
 
-function openRecipeModal(r){
-  if(typeof r==='string')r=JSON.parse(r);
+function openRecipeModal(rOrId){
+  const r = (typeof rOrId === 'number' || !isNaN(parseInt(rOrId))) ? 
+    _recipesCache.find(x=>x.id===parseInt(rOrId)) : 
+    (typeof rOrId==='string' ? JSON.parse(rOrId) : rOrId);
+  if(!r){console.error('Recipe not found:', rOrId); return;}
   document.getElementById('edit-recipe-id').value=r.id;
   document.getElementById('edit-recipe-name').value=r.name||'';
   document.getElementById('edit-recipe-ingredients').value=r.zutaten||'';
@@ -1258,7 +1265,7 @@ async function loadMeals(){
 }
 
 // RECIPES
-async function loadRecipes(){
+async async function loadRecipes(){
   const{data}=await sb.from('rezepte').select('*').eq('user_id',currentUser.id).order('name');
   const list=document.getElementById('recipe-list'),sel=document.getElementById('quick-recipe-select');
   while(sel.options.length>1)sel.remove(1);
@@ -1278,7 +1285,7 @@ async function loadRecipes(){
           </div>
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;" onclick="event.stopPropagation()">
-          <button class="btn btn-warning btn-sm" onclick="openRecipeModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">&#9998;</button>
+          <button class="btn btn-warning btn-sm" onclick="openRecipeModal(r.id)">&#9998;</button>
           <button class="btn btn-accent btn-sm" onclick="openAddRecipeModal(${r.id})">+</button>
           <button class="btn btn-danger btn-sm" onclick="deleteRecipe(${r.id})">&#10005;</button>
         </div>
@@ -1393,7 +1400,7 @@ async function showDayDetail(ds){
       <span>${esc(m.beschreibung.substring(0,40))}${m.beschreibung.length>40?'...':''}</span>
       <div style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
         <span style="color:var(--text2);">${m.kalorien||0}kcal</span>
-        <button class="btn btn-warning btn-sm" style="padding:2px 6px;font-size:11px;" onclick='openEditModal(${JSON.stringify(m)})'>✎</button>
+        <button class="btn btn-warning btn-sm" style="padding:2px 6px;font-size:11px;" onclick='openEditModal(${m.id})'>✎</button>
       </div>
     </div>`).join('')}`;
 }
