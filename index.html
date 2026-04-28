@@ -323,7 +323,7 @@ select:focus { border-color: var(--accent) !important; }
 <!-- Auth -->
 
 <!-- Access Code Screen -->
-<div id="access-screen" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--bg);z-index:500;">
+<div id="access-screen" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:2rem;background:var(--bg);z-index:500;">
   <div style="background:var(--surface);border-radius:24px;padding:2.5rem;width:100%;max-width:380px;border:1px solid var(--border);text-align:center;">
     <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:700;color:var(--accent);margin-bottom:4px;">NutriTrack</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:2rem;">Privater Bereich — Zugangscode erforderlich</div>
@@ -414,12 +414,18 @@ select:focus { border-color: var(--accent) !important; }
       </div>
       <div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">Aktivität heute — Ziel: <span id="kal-goal" style="font-weight:600;color:var(--accent);">–</span> kcal</div>
-        <div class="activity-selector" id="dash-activity-selector">
-          <button class="activity-btn" data-val="sitzend" onclick="setDayActivity('sitzend',this)">Sitzend</button>
-          <button class="activity-btn" data-val="leicht" onclick="setDayActivity('leicht',this)">Leicht</button>
-          <button class="activity-btn active" data-val="mittel" onclick="setDayActivity('mittel',this)">Mittel</button>
-          <button class="activity-btn" data-val="aktiv" onclick="setDayActivity('aktiv',this)">Aktiv</button>
-          <button class="activity-btn" data-val="sehr_aktiv" onclick="setDayActivity('sehr_aktiv',this)">Sehr aktiv</button>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <select id="dash-activity-select" onchange="setDayActivitySelect()" style="padding:10px 36px 10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;">
+            <option value="sitzend">Sitzend</option>
+            <option value="leicht">Leicht aktiv</option>
+            <option value="mittel" selected>Mittel aktiv</option>
+            <option value="aktiv">Aktiv</option>
+            <option value="sehr_aktiv">Sehr aktiv</option>
+            <option value="sonstiges">Sonstiges / Manuell</option>
+          </select>
+          <div id="dash-manual-cal" style="display:none;">
+            <input type="number" id="dash-cal-burn" placeholder="kcal Verbrauch heute" class="inline-input" style="padding:9px 12px;font-size:13px;" oninput="setManualCalBurn(this.value)">
+          </div>
         </div>
       </div>
     </div>
@@ -487,7 +493,7 @@ select:focus { border-color: var(--accent) !important; }
       <textarea class="big" id="quick-meal-input" placeholder="z.B. '200g Hähnchenbrust mit 150g Basmatireis und gemischtem Salat mit Olivenöl'"></textarea>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;"><select id="quick-meal-type" style="flex:1;min-width:120px;"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
-        <select id="quick-recipe-select" style="flex:1;"><option value="">Rezept wählen</option></select></div>
+        <select id="quick-recipe-select" style="flex:1;"><option value="">Rezept waehlen...</option></select></div>
         <button class="btn btn-accent" id="add-meal-btn" onclick="addMealFromDash()">Analysieren & Speichern</button>
       </div>
       <div class="tooltip" id="meal-status"></div>
@@ -846,11 +852,12 @@ function setDayActivitySelect(){
 }
 function setActivityUI(val){
   const sel=document.getElementById('dash-activity-select');
-  if(sel){
-    const mapped=val==='manuell'?'sonstiges':val;
-    if([...sel.options].some(o=>o.value===mapped))sel.value=mapped;
-    else sel.value='mittel';
-  }
+  if(!sel)return;
+  const mapped=(val==='manuell'||val==='sonstiges')?'sonstiges':val;
+  const exists=[...sel.options].some(o=>o.value===mapped);
+  sel.value=exists?mapped:'mittel';
+  const manualDiv=document.getElementById('dash-manual-cal');
+  if(manualDiv)manualDiv.style.display=mapped==='sonstiges'?'block':'none';
 }
 
 // DASHBOARD
