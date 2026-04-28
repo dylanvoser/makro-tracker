@@ -414,18 +414,14 @@ select:focus { border-color: var(--accent) !important; }
       </div>
       <div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">Aktivität heute — Ziel: <span id="kal-goal" style="font-weight:600;color:var(--accent);">–</span> kcal</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <select id="dash-activity-select" onchange="setDayActivitySelect()" style="padding:10px 36px 10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;">
-            <option value="sitzend">Sitzend</option>
-            <option value="leicht">Leicht aktiv</option>
-            <option value="mittel" selected>Mittel aktiv</option>
-            <option value="aktiv">Aktiv</option>
-            <option value="sehr_aktiv">Sehr aktiv</option>
-            <option value="sonstiges">Sonstiges / Manuell</option>
-          </select>
-          <div id="dash-manual-cal" style="display:none;">
-            <input type="number" id="dash-cal-burn" placeholder="kcal Verbrauch heute" class="inline-input" style="padding:9px 12px;font-size:13px;" oninput="setManualCalBurn(this.value)">
-          </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+          <button class="activity-btn" data-val="sitzend" onclick="setDayActivityBtn('sitzend',this)">Sitzend</button>
+          <button class="activity-btn" data-val="leicht" onclick="setDayActivityBtn('leicht',this)">Leicht</button>
+          <button class="activity-btn active" data-val="mittel" onclick="setDayActivityBtn('mittel',this)">Mittel</button>
+          <button class="activity-btn" data-val="aktiv" onclick="setDayActivityBtn('aktiv',this)">Aktiv</button>
+          <button class="activity-btn" data-val="sehr_aktiv" onclick="setDayActivityBtn('sehr_aktiv',this)">Sehr aktiv</button>
+          <button class="activity-btn" data-val="sonstiges" onclick="setDayActivityBtn('sonstiges',this)">Sonstiges</button>
+          <input type="number" id="dash-cal-burn" placeholder="kcal" style="display:none;width:90px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;" oninput="setManualCalBurn(this.value)">
         </div>
       </div>
     </div>
@@ -840,6 +836,18 @@ function setManualCalBurn(val){
 }
 
 // ACTIVITY
+function setDayActivityBtn(val, btn){
+  dayActivity = val;
+  localStorage.setItem('day_activity_'+today(), val);
+  // Update button styles
+  document.querySelectorAll('.activity-btn').forEach(b => b.classList.toggle('active', b.dataset.val===val));
+  // Show/hide manual input
+  const manInput = document.getElementById('dash-cal-burn');
+  if(manInput) manInput.style.display = val==='sonstiges' ? 'inline-block' : 'none';
+  calcTDEE(val==='sonstiges'?'manuell':val);
+  loadDashboard();
+}
+
 function setDayActivitySelect(){
   const sel=document.getElementById('dash-activity-select');
   const val=sel.value;
@@ -851,13 +859,10 @@ function setDayActivitySelect(){
   loadDashboard();
 }
 function setActivityUI(val){
-  const sel=document.getElementById('dash-activity-select');
-  if(!sel)return;
   const mapped=(val==='manuell'||val==='sonstiges')?'sonstiges':val;
-  const exists=[...sel.options].some(o=>o.value===mapped);
-  sel.value=exists?mapped:'mittel';
-  const manualDiv=document.getElementById('dash-manual-cal');
-  if(manualDiv)manualDiv.style.display=mapped==='sonstiges'?'block':'none';
+  document.querySelectorAll('.activity-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===mapped));
+  const manInput=document.getElementById('dash-cal-burn');
+  if(manInput)manInput.style.display=mapped==='sonstiges'?'inline-block':'none';
 }
 
 // DASHBOARD
@@ -995,7 +1000,7 @@ function closeModal(){document.getElementById('edit-modal').style.display='none'
 
 
 // ========== RECIPE ADD MODAL ==========
-function openAddRecipeModal(id){
+function openAddRecipeModal(id, mealType){
   const r=_recipesCache.find(x=>x.id===id);
   if(!r)return;
   document.getElementById('add-recipe-id').value=id;
@@ -1007,8 +1012,8 @@ function openAddRecipeModal(id){
   if(unitLabel)unitLabel.textContent=r.einheit||'Portion';
   document.getElementById('add-recipe-status').textContent='';
   // Set meal type from dashboard if available
-  const dashType=document.getElementById('quick-meal-type')?.value;
-  if(dashType)document.getElementById('add-recipe-meal-type').value=dashType;
+  const mt=mealType||document.getElementById('quick-meal-type')?.value||'mittagessen';
+  document.getElementById('add-recipe-meal-type').value=mt;
   document.getElementById('recipe-add-modal').style.display='flex';
   updateRecipePreview();
 }
@@ -1016,8 +1021,10 @@ function openAddRecipeModal(id){
 function openAddRecipeFromDash(){
   const sel=document.getElementById('quick-recipe-select');
   const id=parseInt(sel.value);
-  if(!id){alert('Bitte zuerst ein Rezept auswaehlen');return;}
-  openAddRecipeModal(id);
+  if(!id)return;
+  // Sync meal type from dashboard dropdown
+  const dashType=document.getElementById('quick-meal-type')?.value||'mittagessen';
+  openAddRecipeModal(id, dashType);
 }
 function closeRecipeAddModal(){document.getElementById('recipe-add-modal').style.display='none';}
 
