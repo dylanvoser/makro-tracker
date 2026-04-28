@@ -276,6 +276,17 @@ select:focus { border-color: var(--accent) !important; }
   <div class="modal">
     <div class="modal-title">Mahlzeit bearbeiten</div>
     <input type="hidden" id="edit-meal-id">
+    <input type="hidden" id="edit-meal-rezept-id">
+    <div id="edit-recipe-section" style="display:none;margin-bottom:1rem;padding:10px 12px;background:var(--accent-light);border-radius:var(--radius-sm);">
+      <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px;">Basiert auf Rezept</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="edit-recipe-ref" class="inline-input" style="flex:1;" onchange="updateEditFromRecipe()">
+          <option value="">Kein Rezept</option>
+        </select>
+        <input type="number" id="edit-recipe-amount" placeholder="Menge" class="inline-input" style="width:100px;" oninput="updateEditFromRecipe()">
+        <span id="edit-recipe-unit-lbl" style="padding:10px 8px;font-size:13px;color:var(--text2);"></span>
+      </div>
+    </div>
     <div class="field"><label>Beschreibung</label><textarea class="big" id="edit-meal-desc" style="min-height:60px;"></textarea></div>
     <div class="grid-2">
       <div class="field"><label>Typ</label>
@@ -421,7 +432,7 @@ select:focus { border-color: var(--accent) !important; }
           <button class="activity-btn" data-val="aktiv" onclick="setDayActivityBtn('aktiv',this)">Aktiv</button>
           <button class="activity-btn" data-val="sehr_aktiv" onclick="setDayActivityBtn('sehr_aktiv',this)">Sehr aktiv</button>
           <button class="activity-btn" data-val="sonstiges" onclick="setDayActivityBtn('sonstiges',this)">Sonstiges</button>
-          <input type="number" id="dash-cal-burn" placeholder="kcal" style="display:none;width:90px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;" oninput="setManualCalBurn(this.value)">
+          <div id="dash-manual-cal"><input type="number" id="dash-cal-burn" placeholder="kcal" style="display:none;width:90px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;" oninput="setManualCalBurn(this.value)">
         </div>
       </div>
     </div>
@@ -449,9 +460,13 @@ select:focus { border-color: var(--accent) !important; }
             <div class="progress-label"><span>Fett gesamt</span><span id="f-val">0g</span></div>
             <div class="progress-bar"><div class="progress-fill" id="f-bar" style="background:#2980b9;width:0%"></div></div>
           </div>
-          <div class="fat-breakdown">
-            <div class="fat-item"><div class="fat-item-val" id="sat-val">0g</div><div class="fat-item-lbl">Gesättigte FS</div></div>
-            <div class="fat-item"><div class="fat-item-val" id="unsat-val">0g</div><div class="fat-item-lbl">Ungesättigte FS</div></div>
+          <div class="progress-wrap" style="margin-top:8px;">
+            <div class="progress-label"><span style="color:#c0392b;">&#8593; Gesättigt</span><span id="sat-val">0g</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="sat-bar" style="background:#c0392b;width:0%"></div></div>
+          </div>
+          <div class="progress-wrap" style="margin-top:6px;">
+            <div class="progress-label"><span style="color:#2980b9;">&#8595; Ungesättigt</span><span id="unsat-val">0g</span></div>
+            <div class="progress-bar"><div class="progress-fill" id="unsat-bar" style="background:#2980b9;width:0%"></div></div>
           </div>
         </div>
       </div>
@@ -489,7 +504,8 @@ select:focus { border-color: var(--accent) !important; }
       <textarea class="big" id="quick-meal-input" placeholder="z.B. '200g Hähnchenbrust mit 150g Basmatireis und gemischtem Salat mit Olivenöl'"></textarea>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;"><select id="quick-meal-type" style="flex:1;min-width:120px;"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
-        <select id="quick-recipe-select" style="flex:1;"><option value="">Rezept waehlen...</option></select></div>
+        <select id="quick-recipe-select" style="flex:1;"><option value="">Rezept waehlen...</option></select>
+        <button class="btn btn-accent btn-sm" onclick="openAddRecipeFromDash()" style="white-space:nowrap;flex-shrink:0;">+ Rezept</button></div>
         <button class="btn btn-accent" id="add-meal-btn" onclick="addMealFromDash()">Analysieren & Speichern</button>
       </div>
       <div class="tooltip" id="meal-status"></div>
@@ -813,9 +829,10 @@ function calcTDEE(actOverride){
   if(!age||!gender||!height||!weight)return;
   const bmr=gender==='maennlich'?10*weight+6.25*height-5*age+5:10*weight+6.25*height-5*age-161;
   let tdee;
-  if(act==='manuell'){
-    const manualBurn=parseInt(document.getElementById('p-cal-burn')?.value)||0;
-    tdee=bmr+manualBurn;
+  if(act==='manuell'||act==='sonstiges'){
+    const dashBurn=parseInt(document.getElementById('dash-cal-burn')?.value)||parseInt(localStorage.getItem('manual_cal_burn_'+today()))||0;
+    const profBurn=parseInt(document.getElementById('p-cal-burn')?.value)||0;
+    tdee=bmr+(dashBurn||profBurn||0);
   } else {
     const f={sitzend:1.2,leicht:1.375,mittel:1.55,aktiv:1.725,sehr_aktiv:1.9};
     tdee=bmr*(f[act]||1.55);
@@ -831,6 +848,8 @@ function calcTDEE(actOverride){
 
 function setManualCalBurn(val){
   localStorage.setItem('manual_cal_burn_'+today(), val);
+  dayActivity='sonstiges';
+  localStorage.setItem('day_activity_'+today(),'sonstiges');
   calcTDEE('manuell');
   loadDashboard();
 }
@@ -891,6 +910,9 @@ async function loadDashboard(){
   document.getElementById('f-val').textContent=Math.round(t.f)+'g';
   document.getElementById('sat-val').textContent=Math.round(t.sf)+'g';
   document.getElementById('unsat-val').textContent=Math.round(t.uf)+'g';
+  const fGoalTotal=(goal*.30)/9;
+  document.getElementById('sat-bar').style.width=Math.min(100,(t.sf/(fGoalTotal*0.4))*100)+'%';
+  document.getElementById('unsat-bar').style.width=Math.min(100,(t.uf/(fGoalTotal*0.6))*100)+'%';
   document.getElementById('kal-ring').style.strokeDashoffset=364.4-(364.4*Math.min(100,(t.kal/goal)*100)/100);
   const pG=(userProfile?.weight_kg||70)*1.8,cG=(goal*.45)/4,fG=(goal*.30)/9;
   document.getElementById('p-bar').style.width=Math.min(100,(t.p/pG)*100)+'%';
@@ -981,9 +1003,10 @@ async function deleteMeal(id){
 }
 
 // EDIT MODAL
-function openEditModal(m){
+async function openEditModal(m){
   if(typeof m==='string')m=JSON.parse(m);
   document.getElementById('edit-meal-id').value=m.id;
+  document.getElementById('edit-meal-rezept-id').value=m.rezept_id||'';
   document.getElementById('edit-meal-desc').value=m.beschreibung||'';
   document.getElementById('edit-meal-type').value=m.mahlzeit_typ||'mittagessen';
   document.getElementById('edit-meal-date').value=m.datum||today();
@@ -994,6 +1017,20 @@ function openEditModal(m){
   document.getElementById('edit-sat-fat').value=m.sat_fat||'';
   document.getElementById('edit-unsat-fat').value=m.unsat_fat||'';
   document.getElementById('edit-status').textContent='';
+  // Show recipe section if meal is based on a recipe
+  const recipeSection=document.getElementById('edit-recipe-section');
+  if(m.rezept_id&&_recipesCache.length){
+    recipeSection.style.display='block';
+    await populateEditRecipeSelect();
+    document.getElementById('edit-recipe-ref').value=m.rezept_id;
+    // Extract amount from description
+    const amtMatch=(m.beschreibung||'').match(/\(([0-9.]+)/);
+    if(amtMatch)document.getElementById('edit-recipe-amount').value=amtMatch[1];
+    const r=_recipesCache.find(x=>x.id===m.rezept_id);
+    if(r)document.getElementById('edit-recipe-unit-lbl').textContent=r.einheit||'Port.';
+  } else {
+    recipeSection.style.display='none';
+  }
   document.getElementById('edit-modal').style.display='flex';
 }
 function closeModal(){document.getElementById('edit-modal').style.display='none';}
@@ -1076,6 +1113,46 @@ async function confirmAddRecipe(){
 }
 // =======================================
 
+
+// ========== EDIT MEAL WITH RECIPE ==========
+async function populateEditRecipeSelect(){
+  const sel = document.getElementById('edit-recipe-ref');
+  if(!sel) return;
+  // Clear and repopulate
+  sel.innerHTML = '<option value="">Kein Rezept</option>';
+  if(_recipesCache && _recipesCache.length){
+    _recipesCache.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.name + ' (' + r.portionen + ' ' + (r.einheit||'Port.') + ')';
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function updateEditFromRecipe(){
+  const sel = document.getElementById('edit-recipe-ref');
+  const id = parseInt(sel.value);
+  if(!id) return;
+  const r = _recipesCache.find(x=>x.id===id);
+  if(!r) return;
+  const amount = parseFloat(document.getElementById('edit-recipe-amount').value) || parseFloat(r.portionen) || 1;
+  const base = parseFloat(r.portionen) || 1;
+  const scale = amount / base;
+  // Update unit label
+  document.getElementById('edit-recipe-unit-lbl').textContent = r.einheit || 'Port.';
+  // Update description
+  document.getElementById('edit-meal-desc').value = r.name + ' (' + amount + ' ' + (r.einheit||'Port.') + ')';
+  // Update macros
+  document.getElementById('edit-kal').value = Math.round((r.kalorien||0)*scale);
+  document.getElementById('edit-protein').value = Math.round((r.protein||0)*scale*10)/10;
+  document.getElementById('edit-carbs').value = Math.round((r.carbs||0)*scale*10)/10;
+  document.getElementById('edit-fett').value = Math.round((r.fett||0)*scale*10)/10;
+  document.getElementById('edit-sat-fat').value = Math.round((r.sat_fat||0)*scale*10)/10;
+  document.getElementById('edit-unsat-fat').value = Math.round((r.unsat_fat||0)*scale*10)/10;
+}
+// ===========================================
+
 // ========== RECIPE FUNCTIONS ==========
 let _recipesCache = [];
 
@@ -1140,7 +1217,8 @@ async function reanalyzeRecipe(){
 
 async function saveEditMeal(){
   const id=document.getElementById('edit-meal-id').value;
-  await sb.from('mahlzeiten').update({beschreibung:document.getElementById('edit-meal-desc').value,mahlzeit_typ:document.getElementById('edit-meal-type').value,datum:document.getElementById('edit-meal-date').value,kalorien:parseInt(document.getElementById('edit-kal').value)||0,protein:parseFloat(document.getElementById('edit-protein').value)||0,carbs:parseFloat(document.getElementById('edit-carbs').value)||0,fett:parseFloat(document.getElementById('edit-fett').value)||0,sat_fat:parseFloat(document.getElementById('edit-sat-fat').value)||0,unsat_fat:parseFloat(document.getElementById('edit-unsat-fat').value)||0}).eq('id',id).eq('user_id',currentUser.id);
+  const rezeptId=parseInt(document.getElementById('edit-recipe-ref')?.value)||null;
+  await sb.from('mahlzeiten').update({beschreibung:document.getElementById('edit-meal-desc').value,mahlzeit_typ:document.getElementById('edit-meal-type').value,datum:document.getElementById('edit-meal-date').value,kalorien:parseInt(document.getElementById('edit-kal').value)||0,protein:parseFloat(document.getElementById('edit-protein').value)||0,carbs:parseFloat(document.getElementById('edit-carbs').value)||0,fett:parseFloat(document.getElementById('edit-fett').value)||0,sat_fat:parseFloat(document.getElementById('edit-sat-fat').value)||0,unsat_fat:parseFloat(document.getElementById('edit-unsat-fat').value)||0,rezept_id:rezeptId}).eq('id',id).eq('user_id',currentUser.id);
   closeModal();await loadDashboard();await loadMeals();
 }
 async function reanalyzeMeal(){
@@ -1216,7 +1294,7 @@ async function saveRecipe(){
   const name=document.getElementById('recipe-name').value.trim(),ing=document.getElementById('recipe-ingredients').value.trim(),p=parseFloat(document.getElementById('recipe-portionen').value)||1,unit=document.getElementById('recipe-unit').value||'portion';
   if(!name||!ing)return;
   document.getElementById('recipe-status').textContent='⏳ KI berechnet...';
-  const m=await analyzeMacros(ing+' ('+p+' Portion(en))');
+  const m=await analyzeMacros('Berechne Makros fuer folgendes Rezept/Mahlzeit. Die angegebene Menge ergibt genau '+p+' '+unit+'. Zutaten: '+ing);
   if(m){await sb.from('rezepte').insert({user_id:currentUser.id,name,zutaten:ing,portionen:p,einheit:unit,...m});document.getElementById('recipe-name').value='';document.getElementById('recipe-ingredients').value='';document.getElementById('recipe-status').textContent='✓ Gespeichert!';setTimeout(()=>document.getElementById('recipe-status').textContent='',2000);await loadRecipes();}
   else document.getElementById('recipe-status').textContent='⚠ API-Key in Profil eintragen!';
 }
