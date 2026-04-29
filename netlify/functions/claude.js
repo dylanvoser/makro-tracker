@@ -20,9 +20,14 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body || '{}');
     const mode = body.mode || 'meal';
     const amountText = body.amount && body.unit ? `Die folgenden Makros sollen für die komplette Rezept-Basismenge ${body.amount} ${body.unit} gelten.` : '';
-    const prompt = mode === 'recipe'
-      ? `Analysiere dieses Rezept auf Deutsch. ${amountText}\nName: ${body.name || ''}\nZutaten: ${body.text || ''}\nWichtig: Gib die Werte für die gesamte angegebene Basismenge aus, nicht pro 100g und nicht pro Portion, ausser die Basismenge ist Portion. Antworte ausschliesslich als JSON mit den Feldern kalorien, protein, carbs, fett, sat_fat, unsat_fat, hinweis. Zahlen ohne Einheiten. sat_fat + unsat_fat muss ungefähr fett ergeben. Wenn unbekannt, realistisch schätzen.`
-      : `Analysiere diese Mahlzeit auf Deutsch: ${body.text || ''}\nAntworte ausschliesslich als JSON mit den Feldern kalorien, protein, carbs, fett, sat_fat, unsat_fat, hinweis. Zahlen ohne Einheiten. sat_fat + unsat_fat muss ungefähr fett ergeben. Keine Zutaten hinzufügen, die nicht genannt sind.`;
+    let prompt;
+    if (mode === 'recipe') {
+      prompt = `Analysiere dieses Rezept auf Deutsch. ${amountText}\nName: ${body.name || ''}\nZutaten: ${body.text || ''}\nWichtig: Gib die Werte für die gesamte angegebene Basismenge aus, nicht pro 100g und nicht pro Portion, ausser die Basismenge ist Portion. Antworte ausschliesslich als JSON mit den Feldern kalorien, protein, carbs, fett, sat_fat, unsat_fat, hinweis. Zahlen ohne Einheiten. sat_fat + unsat_fat muss ungefähr fett ergeben. Wenn unbekannt, realistisch schätzen.`;
+    } else if (mode === 'ingredient') {
+      prompt = `Analysiere diese einzelne Zutat / dieses Produkt auf Deutsch. ${amountText}\nName: ${body.name || ''}\nBeschreibung: ${body.text || ''}\nWichtig: Gib die Werte für genau die angegebene Basismenge aus. Wenn nur Kalorien bekannt sind, schätze Protein, Kohlenhydrate, Fett, gesättigte und ungesättigte Fettsäuren realistisch. Antworte ausschliesslich als JSON mit den Feldern kalorien, protein, carbs, fett, sat_fat, unsat_fat, hinweis. Zahlen ohne Einheiten. Keine zusätzlichen Zutaten annehmen.`;
+    } else {
+      prompt = `Analysiere diese Mahlzeit auf Deutsch: ${body.text || ''}\nAntworte ausschliesslich als JSON mit den Feldern kalorien, protein, carbs, fett, sat_fat, unsat_fat, hinweis. Zahlen ohne Einheiten. sat_fat + unsat_fat muss ungefähr fett ergeben. Keine Zutaten hinzufügen, die nicht genannt sind.`;
+    }
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
