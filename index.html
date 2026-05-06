@@ -421,7 +421,21 @@ function ingRowsToComponents(rows){
 }
 function textToIngRows(text){
   if(!text||!text.trim()) return [];
-  return text.split('\n').filter(l=>l.trim()).map(l=>({type:'free',amount:'',name:l.trim(),unit:'g'}));
+  const units=['kg','ml','g','l','el','tl','stueck','stk','portion','tasse','pkg'];
+  return text.split('\n').filter(l=>l.trim()).map(l=>{
+    l=l.trim();
+    const m=l.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-ZäöüÄÖÜ]+)?\s+(.+)$/);
+    if(m){
+      const amt=m[1].replace(',','.');
+      const rawUnit=(m[2]||'').toLowerCase();
+      const rest=m[3].trim();
+      const matchedUnit=units.find(u=>u===rawUnit||rawUnit.startsWith(u));
+      if(matchedUnit) return {type:'free',amount:amt,unit:matchedUnit,name:rest};
+      // rawUnit is part of the name (e.g. "2 Bananen")
+      return {type:'free',amount:amt,unit:'stueck',name:(rawUnit+' '+rest).trim()};
+    }
+    return {type:'free',amount:'',unit:'g',name:l};
+  });
 }
 function componentsToIngRows(comps, zutatenText){
   if(!comps||!comps.length) return textToIngRows(zutatenText);
