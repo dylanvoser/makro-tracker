@@ -438,8 +438,21 @@ function textToIngRows(text){
   });
 }
 function componentsToIngRows(comps, zutatenText){
-  if(!comps||!comps.length) return textToIngRows(zutatenText);
-  return comps.map(c=>({type:'ingredient',amount:fmt(c.amount),name:c.name,ingredient_id:c.ingredient_id||null,unit:c.unit||'g',base_amount:fmt(c.base_amount||c.amount||100),base_unit:c.base_unit||c.unit||'g',kalorien:n(c.kalorien),protein:n(c.protein),carbs:n(c.carbs),fett:n(c.fett),sat_fat:n(c.sat_fat),unsat_fat:n(c.unsat_fat)}));
+  // Build rows from DB-komponenten (have macro data)
+  const compRows=(comps||[]).map(c=>({type:'ingredient',amount:fmt(c.amount),name:c.name,ingredient_id:c.ingredient_id||null,unit:c.unit||'g',base_amount:fmt(c.base_amount||c.amount||100),base_unit:c.base_unit||c.unit||'g',kalorien:n(c.kalorien),protein:n(c.protein),carbs:n(c.carbs),fett:n(c.fett),sat_fat:n(c.sat_fat),unsat_fat:n(c.unsat_fat)}));
+  // Build rows from zutaten text — skip lines already covered by a komponente (same name)
+  const compNames=new Set(compRows.map(r=>r.name.toLowerCase().trim()));
+  const textRows=textToIngRows(zutatenText).filter(r=>!compNames.has(r.name.toLowerCase().trim()));
+  // Merge: use zutaten text order as the canonical order, replacing matching lines with comp data
+  if(!compRows.length) return textRows.length?textRows:[];
+  if(!textRows.length) return compRows;
+  // Reconstruct in text order: for each text line, use comp if name matches, else use text row
+  const compByName=new Map(compRows.map(r=>[r.name.toLowerCase().trim(),r]));
+  const allTextRows=textToIngRows(zutatenText);
+  return allTextRows.map(tr=>{
+    const comp=compByName.get(tr.name.toLowerCase().trim());
+    return comp||tr;
+  });
 }
 // ── END NEW INGREDIENT ROW SYSTEM ──────────────────────────────────────
 
