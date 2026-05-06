@@ -284,7 +284,7 @@ async function deleteRecipe(id){await sb.from('rezepte').delete().eq('id',id).eq
 function openRecipeAdd(id){const r=recipes.find(x=>String(x.id)===String(id));if(!r)return;$('ar-id').value=r.id;$('ar-amount').value=r.portionen||1;$('ar-unit').textContent=r.einheit||'portion';addRecipeComponents=Array.isArray(r.komponenten)&&r.komponenten.length?JSON.parse(JSON.stringify(r.komponenten)):[];$('ar-info').innerHTML=`<b>${esc(r.name)}</b><br>Basis: ${fmt(r.portionen||1)} ${esc(r.einheit||'portion')}<div class="macro-row">${macroPills(r)}</div>`;$('ar-status').textContent='';updateRecipePreview();$('add-recipe-modal').style.display='flex'}
 function scaledRecipe(){const r=recipes.find(x=>String(x.id)===String($('ar-id').value));if(!r)return null;if(addRecipeComponents.length){const m=sumComponents(addRecipeComponents);return {r,amount:n($('ar-amount').value)||n(r.portionen)||1,fac:1,m,komponenten:addRecipeComponents}}const base=n(r.portionen)||1,amount=n($('ar-amount').value)||0,fac=amount/base;return {r,amount,fac,m:{kalorien:Math.round(n(r.kalorien)*fac),protein:fmt(n(r.protein)*fac),carbs:fmt(n(r.carbs)*fac),fett:fmt(n(r.fett)*fac),sat_fat:fmt(n(r.sat_fat)*fac),unsat_fat:fmt(n(r.unsat_fat)*fac)},komponenten:[]}}
 function updateRecipePreview(){renderComponents('ar-components','addRecipeComponents','updateRecipePreview');const s=scaledRecipe();if(!s||(!s.amount&&!addRecipeComponents.length)){$('ar-preview').classList.add('hidden');return}$('ar-preview').classList.remove('hidden');$('ar-preview').innerHTML=`Vorschau ${addRecipeComponents.length?'aus Einzelmengen':'für <b>'+fmt(s.amount)+' '+esc(s.r.einheit||'portion')+'</b>'}<div class="macro-row">${macroPills(s.m)}</div>`}
-async function confirmAddRecipe(){const s=scaledRecipe();if(!s)return toast('ar-status','Menge fehlt',false);const desc=addRecipeComponents.length?`${s.r.name} (${componentSummary(addRecipeComponents)})`:`${s.r.name} (${fmt(s.amount)} ${s.r.einheit||'portion'})`;await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:today(),mahlzeit_typ:$('ar-type').value,beschreibung:desc,rezept_id:s.r.id,rezept_menge:s.amount,rezept_einheit:s.r.einheit||'portion',komponenten:s.komponenten||[],...dbMacros(s.m)});closeModal('add-recipe-modal');$('quick-recipe').value='';await loadDashboard();await loadMeals();renderCalendar()}
+async function confirmAddRecipe(){const s=scaledRecipe();if(!s)return toast('ar-status','Menge fehlt',false);const desc=addRecipeComponents.length?`${s.r.name} (${componentSummary(addRecipeComponents)})`:`${s.r.name} (${fmt(s.amount)} ${s.r.einheit||'portion'})`;const targetDate=$('add-recipe-modal').dataset.targetDate||today();await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:targetDate,mahlzeit_typ:$('ar-type').value,beschreibung:desc,rezept_id:s.r.id,rezept_menge:s.amount,rezept_einheit:s.r.einheit||'portion',komponenten:s.komponenten||[],...dbMacros(s.m)});$('add-recipe-modal').dataset.targetDate='';closeModal('add-recipe-modal');$('quick-recipe').value='';if(targetDate!==today()){await dmRefresh();}else{await loadDashboard();}await loadMeals();renderCalendar()}
 async function openMealEdit(id){
   console.log("openMealEdit called with id:",id,"meals count:",meals.length);
   try{
@@ -344,14 +344,17 @@ async function selectDay(ds){
     sb.from('wasser_log').select('*').eq('user_id',currentUser.id).eq('datum',ds)
   ]);
   meals=ms||[];
+  console.log('selectDay: loaded',meals.length,'meals for',ds);
+  meals.forEach((m,i)=>console.log('meal',i,m.id,m.beschreibung?.slice(0,30)));
   const sm=sumMeals(meals),water=(ws||[]).reduce((a,w)=>a+n(w.menge_ml),0),target=calcTDEE(),bal=Math.round(n(sm.kalorien)-target);
   $('edit-day').classList.remove('hidden');
   const dateStr=ds.split('-');
   const displayDate=`${dateStr[2]}.${dateStr[1]}.${dateStr[0]}`;
   $('day-detail').innerHTML=`<b>${displayDate}</b><div class="macro-row">${macroPills(sm)}<span class="macro-pill">Wasser ${water} ml</span><span class="macro-pill" style="color:${bal>0?'var(--danger)':'var(--info)'}">${bal>0?'+':''}${bal} kcal Defizit/Überschuss</span></div><div style="margin-top:1rem">${meals.length?meals.map(mealHtml).join(''):'<div class="empty">Keine Mahlzeiten an diesem Tag</div>'}</div>`;
+  console.log('day-detail rendered, meal buttons in DOM:',document.querySelectorAll('#day-detail .btn').length);
   renderCalendar();
 }
-function changeMonth(d){calMonth+=d;if(calMonth<0){calMonth=11;calYear--}if(calMonth>11){calMonth=0;calYear++}renderCalendar()}function editSelectedDay(){if(!selectedDay)return;selectDay(selectedDay)}
+function changeMonth(d){calMonth+=d;if(calMonth<0){calMonth=11;calYear--}if(calMonth>11){calMonth=0;calYear++}renderCalendar()}function editSelectedDay(){if(!selectedDay)return;openDayModal(selectedDay)}
 function showPage(p){currentPage=p;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===p));if(p==='dashboard')loadDashboard();if(p==='zutaten')loadIngredients();if(p==='rezepte')loadRecipes();if(p==='kalender')renderCalendar();if(p==='profil')calcTDEE()}
 
 // ── NEW INGREDIENT ROW SYSTEM ──────────────────────────────────────────
@@ -537,7 +540,182 @@ document.addEventListener('click',e=>{
   const topEl=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
   if(topEl!==t) dbg('⚠️ BLOCKED BY: '+topEl.tagName+(topEl.id?' #'+topEl.id:'')+(topEl.className?' .'+String(topEl.className).split(' ')[0]:''),'err');
 },'true');
+
+// ── TAG-MODAL (Kalender Tag bearbeiten) ──────────────────────────────
+let dmDate = null;
+
+async function openDayModal(ds){
+  dmDate = ds;
+  const dateStr = ds.split('-');
+  const display = `${dateStr[2]}.${dateStr[1]}.${dateStr[0]}`;
+  $('day-modal-title').textContent = display + ' bearbeiten';
+
+  // Populate recipe + ingredient selects
+  $('dm-recipe').innerHTML = '<option value="">Rezept wählen...</option>' +
+    recipes.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
+  $('dm-ingredient').innerHTML = '<option value="">Zutat wählen...</option>' +
+    ingredients.map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('');
+
+  $('dm-text').value = '';
+  $('dm-status').textContent = '';
+  $('day-modal').style.display = 'flex';
+  await dmRefresh();
+}
+
+async function dmRefresh(){
+  if(!dmDate) return;
+  const [{data:ms},{data:ws}] = await Promise.all([
+    sb.from('mahlzeiten').select('*').eq('user_id',currentUser.id).eq('datum',dmDate).order('created_at',{ascending:false}),
+    sb.from('wasser_log').select('*').eq('user_id',currentUser.id).eq('datum',dmDate)
+  ]);
+  const dayMeals = ms||[];
+  const water = (ws||[]).reduce((a,w)=>a+n(w.menge_ml),0);
+  const waterGoal = n(profile?.water_goal_ml)||2500;
+
+  // Totals bar
+  const sm = sumMeals(dayMeals);
+  const target = calcTDEE();
+  const bal = Math.round(n(sm.kalorien)-target);
+  $('dm-totals').innerHTML = `<div class="macro-row">${macroPills(sm)}<span class="macro-pill" style="color:${bal>0?'var(--danger)':'var(--info)'}">${bal>0?'+':''}${bal} kcal Defizit</span></div>`;
+
+  // Water
+  $('dm-water-total').textContent = water;
+  $('dm-water-goal').textContent = waterGoal;
+  const glasses = Math.round(waterGoal/250);
+  const filled = Math.min(Math.round(water/250), glasses);
+  $('dm-glasses').innerHTML = Array.from({length:glasses},(_,i)=>`<div class="glass ${i<filled?'filled':''}"><div style="height:${i<filled?100:0}%"></div></div>`).join('');
+
+  // Meals
+  $('dm-meal-count').textContent = dayMeals.length + ' Mahlzeiten';
+  $('dm-meals').innerHTML = dayMeals.length
+    ? dayMeals.map(m=>`<div class="meal"><div class="meal-head"><div><b>${esc(m.beschreibung||'Mahlzeit')}</b><div style="margin-top:6px"><span class="type">${esc(m.mahlzeit_typ||'')}</span></div><div class="macro-row">${macroPills(m)}</div></div><div class="flex"><button class="btn btn-sm" onclick="openMealEdit('${m.id}')">Bearbeiten</button><button class="btn btn-sm btn-danger" onclick="dmDeleteMeal('${m.id}')">Löschen</button></div></div></div>`).join('')
+    : '<div class="empty">Keine Mahlzeiten an diesem Tag</div>';
+
+  // Also refresh calendar day-detail if visible
+  if(selectedDay === dmDate) selectDay(dmDate);
+}
+
+async function dmAddWater(){
+  const sel = $('dm-water-amount');
+  const ml = sel.value === 'custom' ? parseInt($('dm-water-custom').value) : parseInt(sel.value);
+  if(!ml) return;
+  await sb.from('wasser_log').insert({user_id:currentUser.id, datum:dmDate, menge_ml:ml});
+  await dmRefresh();
+  if(dmDate===today()) loadDashboard();
+}
+
+async function dmSaveMeal(){
+  const txt = $('dm-text').value.trim();
+  const rid = $('dm-recipe').value;
+  if(rid){ dmAddRecipe(); return; }
+  if(!txt) return toast('dm-status','Text oder Rezept wählen',false);
+  try{
+    $('dm-save').disabled=true;
+    $('dm-status').textContent='Analysiere...';
+    const m = await analyze('meal', txt);
+    await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:dmDate,mahlzeit_typ:$('dm-type').value,beschreibung:txt,...dbMacros(m)});
+    $('dm-text').value='';
+    toast('dm-status','Gespeichert');
+    await dmRefresh();
+    if(dmDate===today()) loadDashboard();
+  }catch(e){toast('dm-status',e.message,false);}
+  finally{$('dm-save').disabled=false;}
+}
+
+function dmAddRecipe(){
+  const rid = $('dm-recipe').value;
+  if(!rid) return;
+  const r = recipes.find(x=>String(x.id)===String(rid));
+  if(!r) return;
+  // Temporarily override confirmAddRecipe to use dmDate
+  $('ar-id').value = r.id;
+  $('ar-amount').value = r.portionen||1;
+  $('ar-unit').textContent = r.einheit||'portion';
+  addRecipeComponents = Array.isArray(r.komponenten)&&r.komponenten.length ? JSON.parse(JSON.stringify(r.komponenten)):[];
+  $('ar-info').innerHTML=`<b>${esc(r.name)}</b><br>Basis: ${fmt(r.portionen||1)} ${esc(r.einheit||'portion')}<div class="macro-row">${macroPills(r)}</div>`;
+  $('ar-status').textContent='';
+  updateRecipePreview();
+  // Mark that we're adding to dmDate
+  $('add-recipe-modal').dataset.targetDate = dmDate;
+  $('add-recipe-modal').style.display='flex';
+}
+
+async function dmAddIngredient(){
+  const id = $('dm-ingredient').value;
+  if(!id) return toast('dm-status','Zutat wählen',false);
+  const s = scaledIngredient(id, $('dm-ingredient-amount').value);
+  if(!s) return toast('dm-status','Menge fehlt',false);
+  await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:dmDate,mahlzeit_typ:$('dm-type').value,beschreibung:`${s.i.name} (${fmt(s.amount)} ${s.i.einheit||'g'})`,komponenten:[makeComponentFromIngredient(id,s.amount)],...dbMacros(s.m)});
+  $('dm-ingredient').value=''; $('dm-ingredient-amount').value='';
+  toast('dm-status','Gespeichert');
+  await dmRefresh();
+  if(dmDate===today()) loadDashboard();
+}
+
+async function dmDeleteMeal(id){
+  await sb.from('mahlzeiten').delete().eq('id',id).eq('user_id',currentUser.id);
+  await dmRefresh();
+  if(dmDate===today()) loadDashboard();
+  renderCalendar();
+}
+// ── END TAG-MODAL ────────────────────────────────────────────────────
+
 // ── END DEBUG PANEL ──────────────────────────────────────────────────
 </script>
+
+<div id="day-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('day-modal')">
+  <div class="modal" style="max-width:680px">
+    <div class="between" style="margin-bottom:1.2rem">
+      <h3 id="day-modal-title" style="margin:0">Tag bearbeiten</h3>
+      <button class="btn btn-sm btn-danger" onclick="closeModal('day-modal')">Schliessen</button>
+    </div>
+
+    <!-- Makro-Übersicht -->
+    <div id="dm-totals" class="card" style="margin-bottom:1rem;padding:1rem"></div>
+
+    <!-- Wasser -->
+    <div class="card" style="margin-bottom:1rem">
+      <div class="between"><div class="title" style="margin:0;font-size:14px">Wasser</div><div class="small muted"><span id="dm-water-total">0</span> / <span id="dm-water-goal">2500</span> ml</div></div>
+      <div id="dm-glasses" class="water-glasses" style="margin:8px 0"></div>
+      <div class="wide-row">
+        <select id="dm-water-amount" onchange="$('dm-water-custom').classList.toggle('hidden',this.value!=='custom')">
+          <option value="150">Espresso (150ml)</option>
+          <option value="200">Kleines Glas (200ml)</option>
+          <option value="250" selected>Glas (250ml)</option>
+          <option value="330">Dose (330ml)</option>
+          <option value="500">Flasche (500ml)</option>
+          <option value="custom">Andere Menge</option>
+        </select>
+        <input id="dm-water-custom" class="hidden" type="number" placeholder="ml">
+        <button class="btn btn-accent" onclick="dmAddWater()">+ Hinzufügen</button>
+      </div>
+    </div>
+
+    <!-- Mahlzeit erfassen -->
+    <div class="card" style="margin-bottom:1rem">
+      <div class="badge">KI-Analyse</div>
+      <div class="title" style="font-size:14px">Mahlzeit erfassen</div>
+      <textarea id="dm-text" placeholder="z.B. 200g Hähnchenbrust mit 150g Reis" style="min-height:70px"></textarea>
+      <div class="meal-entry-row" style="margin-top:8px">
+        <select id="dm-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
+        <select id="dm-recipe"><option value="">Rezept wählen...</option></select>
+        <button class="btn btn-accent" onclick="dmAddRecipe()">+ Rezept</button>
+      </div>
+      <div class="meal-entry-row" style="margin-top:8px">
+        <select id="dm-ingredient"><option value="">Zutat wählen...</option></select>
+        <input id="dm-ingredient-amount" type="number" step="0.1" placeholder="Menge">
+        <button class="btn btn-accent" onclick="dmAddIngredient()">+ Zutat</button>
+      </div>
+      <button id="dm-save" class="btn btn-accent btn-full" style="margin-top:8px" onclick="dmSaveMeal()">Analysieren & Speichern</button>
+      <div id="dm-status" class="msg muted"></div>
+    </div>
+
+    <!-- Mahlzeiten des Tages -->
+    <div class="card">
+      <div class="between"><div class="title" style="margin:0;font-size:14px">Mahlzeiten</div><span id="dm-meal-count" class="small muted"></span></div>
+      <div id="dm-meals" style="margin-top:1rem"></div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
