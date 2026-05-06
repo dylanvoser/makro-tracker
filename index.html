@@ -266,18 +266,39 @@ function scaledRecipe(){const r=recipes.find(x=>String(x.id)===String($('ar-id')
 function updateRecipePreview(){renderComponents('ar-components','addRecipeComponents','updateRecipePreview');const s=scaledRecipe();if(!s||(!s.amount&&!addRecipeComponents.length)){$('ar-preview').classList.add('hidden');return}$('ar-preview').classList.remove('hidden');$('ar-preview').innerHTML=`Vorschau ${addRecipeComponents.length?'aus Einzelmengen':'für <b>'+fmt(s.amount)+' '+esc(s.r.einheit||'portion')+'</b>'}<div class="macro-row">${macroPills(s.m)}</div>`}
 async function confirmAddRecipe(){const s=scaledRecipe();if(!s)return toast('ar-status','Menge fehlt',false);const desc=addRecipeComponents.length?`${s.r.name} (${componentSummary(addRecipeComponents)})`:`${s.r.name} (${fmt(s.amount)} ${s.r.einheit||'portion'})`;await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:today(),mahlzeit_typ:$('ar-type').value,beschreibung:desc,rezept_id:s.r.id,rezept_menge:s.amount,rezept_einheit:s.r.einheit||'portion',komponenten:s.komponenten||[],...dbMacros(s.m)});closeModal('add-recipe-modal');$('quick-recipe').value='';await loadDashboard();await loadMeals();renderCalendar()}
 async function openMealEdit(id){
-  let m=meals.find(x=>String(x.id)===String(id));
-  if(!m){
-    // Meal not in current meals[] (e.g. calendar view after dashboard reload) — fetch from DB
-    const {data}=await sb.from('mahlzeiten').select('*').eq('id',id).eq('user_id',currentUser.id).maybeSingle();
-    if(!data)return;
-    m=data;
+  try{
+    let m=meals.find(x=>String(x.id)===String(id));
+    if(!m){
+      const {data}=await sb.from('mahlzeiten').select('*').eq('id',id).eq('user_id',currentUser.id).maybeSingle();
+      if(!data){console.error('Mahlzeit nicht gefunden:',id);return;}
+      m=data;
+    }
+    $('em-id').value=m.id;
+    $('em-text').value=m.beschreibung||'';
+    $('em-type').value=m.mahlzeit_typ||'mittagessen';
+    $('em-date').value=m.datum||today();
+    $('em-kal').value=m.kalorien||0;
+    $('em-protein').value=m.protein||0;
+    $('em-carbs').value=m.carbs||0;
+    $('em-fett').value=m.fett||0;
+    $('em-sat').value=m.sat_fat||0;
+    $('em-unsat').value=m.unsat_fat||0;
+    mealEditComponents=Array.isArray(m.komponenten)?JSON.parse(JSON.stringify(m.komponenten)):[];
+    const isRecipe=!!m.rezept_id;
+    $('em-recipe-box').classList.toggle('hidden',!isRecipe);
+    $('em-recipe').value=m.rezept_id||'';
+    $('em-recipe-amount').value=m.rezept_menge||'';
+    const r=recipes.find(x=>String(x.id)===String(m.rezept_id));
+    $('em-recipe-unit').textContent=r?.einheit||m.rezept_einheit||'–';
+    mealEditComponents=mealEditComponents||[];
+    renderComponents('em-components','mealEditComponents','applyMealEditComponents');
+    const modal=$('meal-modal');
+    modal.style.display='flex';
+    modal.style.setProperty('display','flex','important');
+  }catch(e){
+    console.error('openMealEdit Fehler:',e);
+    alert('Fehler beim Öffnen: '+e.message);
   }
-  $('em-id').value=m.id;$('em-text').value=m.beschreibung||'';$('em-type').value=m.mahlzeit_typ||'mittagessen';$('em-date').value=m.datum||today();$('em-kal').value=m.kalorien||0;$('em-protein').value=m.protein||0;$('em-carbs').value=m.carbs||0;$('em-fett').value=m.fett||0;$('em-sat').value=m.sat_fat||0;$('em-unsat').value=m.unsat_fat||0;
-  mealEditComponents=Array.isArray(m.komponenten)?JSON.parse(JSON.stringify(m.komponenten)):[];
-  const isRecipe=!!m.rezept_id;$('em-recipe-box').classList.toggle('hidden',!isRecipe);$('em-recipe').value=m.rezept_id||'';$('em-recipe-amount').value=m.rezept_menge||'';
-  const r=recipes.find(x=>String(x.id)===String(m.rezept_id));$('em-recipe-unit').textContent=r?.einheit||m.rezept_einheit||'–';
-  renderComponents('em-components','mealEditComponents','applyMealEditComponents');$('meal-modal').style.display='flex';
 }
 function applyMealEditComponents(){renderComponents('em-components','mealEditComponents','applyMealEditComponents');if(mealEditComponents.length){const m=sumComponents(mealEditComponents);$('em-kal').value=m.kalorien;$('em-protein').value=fmt(m.protein);$('em-carbs').value=fmt(m.carbs);$('em-fett').value=fmt(m.fett);$('em-sat').value=fmt(m.sat_fat);$('em-unsat').value=fmt(m.unsat_fat)}}
 function updateMealFromRecipe(){const r=recipes.find(x=>String(x.id)===String($('em-recipe').value));if(!r)return;mealEditComponents=Array.isArray(r.komponenten)&&r.komponenten.length?JSON.parse(JSON.stringify(r.komponenten)):[];const amount=n($('em-recipe-amount').value)||n(r.portionen)||1;$('em-recipe-unit').textContent=r.einheit||'portion';$('em-text').value=`${r.name} (${fmt(amount)} ${r.einheit||'portion'})`;if(mealEditComponents.length){applyMealEditComponents();return}const fac=amount/(n(r.portionen)||1);$('em-kal').value=Math.round(n(r.kalorien)*fac);$('em-protein').value=fmt(n(r.protein)*fac);$('em-carbs').value=fmt(n(r.carbs)*fac);$('em-fett').value=fmt(n(r.fett)*fac);$('em-sat').value=fmt(n(r.sat_fat)*fac);$('em-unsat').value=fmt(n(r.unsat_fat)*fac)}
@@ -296,7 +317,7 @@ async function renderMonthStats(y,m){
   $('month-stats').innerHTML=`<div class="grid-3"><div class="stat"><b>${kcal}</b><span>${prefix} kcal</span></div><div class="stat"><b style="color:${balance>0?'var(--danger)':'var(--info)'}">${balance>0?'+':''}${balance}</b><span>${prefix} Defizit/Überschuss</span></div><div class="stat"><b>${days}</b><span>Tage mit Daten</span></div><div class="stat"><b>${val('protein')}g</b><span>${prefix} Protein</span></div><div class="stat"><b>${val('carbs')}g</b><span>${prefix} KH</span></div><div class="stat"><b>${val('fett')}g</b><span>${prefix} Fett</span></div><div class="stat"><b>${val('sat_fat')}g</b><span>${prefix} gesättigt</span></div><div class="stat"><b>${val('unsat_fat')}g</b><span>${prefix} ungesättigt</span></div></div>`;
 }
 async function selectDay(ds){
-  selectedDay=ds;renderCalendar();
+  selectedDay=ds;
   const [{data:ms},{data:ws}]=await Promise.all([
     sb.from('mahlzeiten').select('*').eq('user_id',currentUser.id).eq('datum',ds).order('created_at',{ascending:false}),
     sb.from('wasser_log').select('*').eq('user_id',currentUser.id).eq('datum',ds)
@@ -304,7 +325,10 @@ async function selectDay(ds){
   meals=ms||[];
   const sm=sumMeals(meals),water=(ws||[]).reduce((a,w)=>a+n(w.menge_ml),0),target=calcTDEE(),bal=Math.round(n(sm.kalorien)-target);
   $('edit-day').classList.remove('hidden');
-  $('day-detail').innerHTML=`<b>${new Date(ds).toLocaleDateString('de-CH')}</b><div class="macro-row">${macroPills(sm)}<span class="macro-pill">Wasser ${water} ml</span><span class="macro-pill" style="color:${bal>0?'var(--danger)':'var(--info)'}">${bal>0?'+':''}${bal} kcal Defizit/Überschuss</span></div><div style="margin-top:1rem">${meals.length?meals.map(mealHtml).join(''):'<div class="empty">Keine Mahlzeiten an diesem Tag</div>'}</div>`;
+  const dateStr=ds.split('-');
+  const displayDate=`${dateStr[2]}.${dateStr[1]}.${dateStr[0]}`;
+  $('day-detail').innerHTML=`<b>${displayDate}</b><div class="macro-row">${macroPills(sm)}<span class="macro-pill">Wasser ${water} ml</span><span class="macro-pill" style="color:${bal>0?'var(--danger)':'var(--info)'}">${bal>0?'+':''}${bal} kcal Defizit/Überschuss</span></div><div style="margin-top:1rem">${meals.length?meals.map(mealHtml).join(''):'<div class="empty">Keine Mahlzeiten an diesem Tag</div>'}</div>`;
+  renderCalendar();
 }
 function changeMonth(d){calMonth+=d;if(calMonth<0){calMonth=11;calYear--}if(calMonth>11){calMonth=0;calYear++}renderCalendar()}function editSelectedDay(){if(!selectedDay)return;selectDay(selectedDay)}
 function showPage(p){currentPage=p;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===p));if(p==='dashboard')loadDashboard();if(p==='zutaten')loadIngredients();if(p==='rezepte')loadRecipes();if(p==='kalender')renderCalendar();if(p==='profil')calcTDEE()}
