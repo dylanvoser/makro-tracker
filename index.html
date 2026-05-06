@@ -347,18 +347,20 @@ function scaledRecipe(){
   const amount=n($('ar-amount').value)||n(r.portionen)||1;
   const base=n(r.portionen)||1;
   const fac=amount/base;
-  // Use componentScaled correctly: each comp has amount=actual_amount, base_amount=DB_base, kalorien=per_base_amount
-  // componentScaled(c) = c.kalorien * (c.amount / c.base_amount) — this is correct per-row
-  // sumComponents sums all componentScaled results
-  const dbComps=ingRowsToComponents(arIngRows);
-  if(dbComps.length){
-    // Scale amounts by fac (for multi-portion), keep base_amount intact so componentScaled works
-    const scaled=dbComps.map(c=>({...c,amount:fmt(n(c.amount)*fac)}));
-    const m=sumComponents(scaled);
-    return {r,amount,fac,m,komponenten:scaled};
-  }
-  const m={kalorien:Math.round(n(r.kalorien)*fac),protein:fmt(n(r.protein)*fac),carbs:fmt(n(r.carbs)*fac),fett:fmt(n(r.fett)*fac),sat_fat:fmt(n(r.sat_fat)*fac),unsat_fat:fmt(n(r.unsat_fat)*fac)};
-  return {r,amount,fac,m,komponenten:[]};
+  // Always scale from recipe's stored total macros — these are ground truth for 1 portion.
+  // sumComponents only works when ALL ingredients have DB macro data (ingredient_id + base_amount),
+  // but arIngRows contains free-text rows (no ingredient_id) which get skipped → wrong totals.
+  const m={
+    kalorien:Math.round(n(r.kalorien)*fac),
+    protein:fmt(n(r.protein)*fac),
+    carbs:fmt(n(r.carbs)*fac),
+    fett:fmt(n(r.fett)*fac),
+    sat_fat:fmt(n(r.sat_fat)*fac),
+    unsat_fat:fmt(n(r.unsat_fat)*fac)
+  };
+  // Build komponenten from all rows for storage (amounts scaled)
+  const dbComps=ingRowsToComponents(arIngRows).map(c=>({...c,amount:fmt(n(c.amount)*fac)}));
+  return {r,amount,fac,m,komponenten:dbComps};
 }
 function updateRecipePreview(){
   const s=scaledRecipe();
