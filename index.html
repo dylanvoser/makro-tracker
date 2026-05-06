@@ -220,7 +220,9 @@ async function saveRecipe(){
     toast('recipe-status','Gespeichert');await loadRecipes();
   }catch(e){toast('recipe-status',e.message,false)}finally{$('recipe-save').disabled=false}
 }
-function openRecipeEdit(id){const r=recipes.find(x=>String(x.id)===String(id));if(!r)return;$('rm-id').value=r.id;$('rm-name').value=r.name||'';$('rm-amount').value=r.portionen||1;$('rm-unit').value=r.einheit||'portion';$('rm-kal').value=r.kalorien||0;$('rm-protein').value=r.protein||0;$('rm-carbs').value=r.carbs||0;$('rm-fett').value=r.fett||0;$('rm-sat').value=r.sat_fat||0;$('rm-unsat').value=r.unsat_fat||0;recipeEditComponents=Array.isArray(r.komponenten)?JSON.parse(JSON.stringify(r.komponenten)):[];rmIngRows=componentsToIngRows(recipeEditComponents,r.zutaten||'');renderIngRows('rm');if($('rm-ing-search-box'))$('rm-ing-search-box').style.display='none';applyRecipeEditTotals();$('recipe-modal').style.display='flex'}
+function openRecipeEdit(id){const r=recipes.find(x=>String(x.id)===String(id));if(!r)return;$('rm-id').value=r.id;$('rm-name').value=r.name||'';$('rm-amount').value=r.portionen||1;$('rm-unit').value=r.einheit||'portion';// Always show the saved macro values from DB — never overwrite with stale komponenten
+$('rm-kal').value=r.kalorien||0;$('rm-protein').value=r.protein||0;$('rm-carbs').value=r.carbs||0;$('rm-fett').value=r.fett||0;$('rm-sat').value=r.sat_fat||0;$('rm-unsat').value=r.unsat_fat||0;recipeEditComponents=[];// Load ingredient rows from komponenten or zutaten text
+const storedComps=Array.isArray(r.komponenten)?JSON.parse(JSON.stringify(r.komponenten)):[];rmIngRows=componentsToIngRows(storedComps,r.zutaten||'');renderIngRows('rm');if($('rm-ing-search-box'))$('rm-ing-search-box').style.display='none';if($('rm-freetext'))$('rm-freetext').value='';$('recipe-modal').style.display='flex'}
 async function reanalyzeRecipeEdit(){
   try{
     $('rm-status').textContent='Analysiere...';
