@@ -84,6 +84,9 @@
   <!-- Vorschau -->
   <div id="ar-preview" class="hidden" style="padding:10px;background:var(--accent-light);border-radius:var(--radius-sm);margin-bottom:1rem;border:1px solid var(--accent)"></div>
 
+  <button class="btn btn-full" style="margin-bottom:8px" onclick="arReanalyze()">✦ Mit KI neu berechnen</button>
+  <div id="ar-reanalyze-status" class="msg muted" style="margin-bottom:8px"></div>
+
   <div class="flex">
     <button class="btn btn-accent" onclick="confirmAddRecipe()">Hinzufügen</button>
     <button class="btn btn-danger" onclick="closeModal('add-recipe-modal')">Abbrechen</button>
@@ -859,6 +862,24 @@ function renderDmQuickIngRows(){
     <div class="ing-name" title="${esc(r.name)}">${esc(r.name)}</div>
     <button class="ing-del" onclick="dmQuickIngRows.splice(${i},1);renderDmQuickIngRows()">×</button>
   </div>`).join('');
+}
+async function arReanalyze(){
+  const r=recipes.find(x=>String(x.id)===String($('ar-id').value));
+  if(!r) return;
+  const status=$('ar-reanalyze-status');
+  status.textContent='KI berechnet...'; status.className='msg muted';
+  try{
+    // Build text from current arIngRows
+    const text=ingRowsToText(arIngRows);
+    if(!text.trim()){status.textContent='Keine Zutaten vorhanden';status.className='msg err';return;}
+    const m=await analyze('recipe',text,{name:r.name,amount:$('ar-amount').value,unit:$('ar-unit').textContent});
+    // Update the recipe object in memory so scaledRecipe uses new values
+    r.kalorien=m.kalorien; r.protein=m.protein; r.carbs=m.carbs;
+    r.fett=m.fett; r.sat_fat=m.sat_fat; r.unsat_fat=m.unsat_fat;
+    updateRecipePreview();
+    status.textContent='Makros aktualisiert';status.className='msg ok';
+    setTimeout(()=>{status.textContent=''},3000);
+  }catch(e){status.textContent='Fehler: '+e.message;status.className='msg err';}
 }
 // ── END QUICK INGREDIENT SEARCH ───────────────────────────────────────
 
