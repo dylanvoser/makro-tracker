@@ -48,7 +48,7 @@
 <div id="auth" class="center-screen hidden"><div class="auth-box"><div class="logo">NutriTrack</div><div class="sub">KI-gestützter Makro-Tracker</div><div class="tabs"><button id="login-tab" class="tab active" onclick="authTab('login')">Anmelden</button><button id="reg-tab" class="tab" onclick="authTab('reg')">Registrieren</button></div><div id="login-form"><div class="field"><label>E-Mail</label><input id="login-email" type="email"></div><div class="field"><label>Passwort</label><input id="login-pw" type="password"></div><button class="btn btn-accent btn-full" onclick="login()">Anmelden</button></div><div id="reg-form" class="hidden"><div class="field"><label>Name</label><input id="reg-name"></div><div class="field"><label>E-Mail</label><input id="reg-email" type="email"></div><div class="field"><label>Passwort</label><input id="reg-pw" type="password"></div><button class="btn btn-accent btn-full" onclick="register()">Konto erstellen</button></div><div id="auth-msg" class="msg"></div></div></div>
 <div id="app"><header class="header"><div class="logo" style="font-size:19px">NutriTrack</div><nav class="nav"><button class="active" data-page="dashboard" onclick="showPage('dashboard')">Dashboard</button><button data-page="zutaten" onclick="showPage('zutaten')">Zutaten</button><button data-page="rezepte" onclick="showPage('rezepte')">Rezepte</button><button data-page="kalender" onclick="showPage('kalender')">Kalender</button><button data-page="profil" onclick="showPage('profil')">Profil</button></nav><div class="user"><div id="avatar" class="avatar">?</div><button class="logout" onclick="logout()">Abmelden</button></div></header>
 <nav class="bottom-nav"><div><button class="active" data-page="dashboard" onclick="showPage('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</button><button data-page="zutaten" onclick="showPage('zutaten')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3v18M8 3v18M4 8h4M12 3h8v18h-8z"/></svg>Zutaten</button><button data-page="rezepte" onclick="showPage('rezepte')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Rezepte</button><button data-page="kalender" onclick="showPage('kalender')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Kalender</button><button data-page="profil" onclick="showPage('profil')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profil</button></div></nav>
-<section id="page-dashboard" class="page active"><div class="between" style="margin-bottom:1rem"><div><h1 style="font-size:25px">Guten Tag, <span id="dash-name">–</span></h1><p id="dash-date" class="muted small"></p></div><div><div class="small muted" style="margin-bottom:6px">Schritte heute + Zusatz — Ziel: <b id="kal-goal" style="color:var(--accent)">–</b> kcal</div><div class="activity" id="activity-buttons"></div><div class="steps-extra"><input id="manual-burn" type="number" placeholder="Zusatzverbrauch kcal" oninput="saveManualBurn()"><span class="small muted">optional z.B. Sport</span></div></div></div><div class="grid-2" style="margin-bottom:1rem"><div class="card calorie-card"><div class="flex calorie-layout" style="align-items:center"><div class="ring"><svg width="140" height="140" viewBox="0 0 140 140"><circle cx="70" cy="70" r="58" fill="none" stroke="var(--surface2)" stroke-width="12"/><circle id="kal-ring" cx="70" cy="70" r="58" fill="none" stroke="var(--accent)" stroke-width="12" stroke-dasharray="364.4" stroke-dashoffset="364.4" stroke-linecap="round"/></svg><div class="ring-center"><div id="kal-consumed" class="ring-val">0</div><div class="ring-lbl">kcal</div><div id="kal-balance" class="small" style="font-weight:700"></div></div></div><div style="flex:1;min-width:180px"><div class="small muted" style="font-weight:700;margin-bottom:8px">MAKROS HEUTE</div><div id="macro-bars"></div></div></div></div><div class="card"><div class="between"><div class="title" style="margin:0">Wasser</div><div class="small muted"><span id="water-total">0</span> / <span id="water-goal">2500</span> ml</div></div><div id="glasses" class="water-glasses"></div><div class="wide-row"><select id="water-amount" onchange="document.getElementById('water-custom').classList.toggle('hidden',this.value!=='custom')"><option value="150">Espresso (150ml)</option><option value="200">Kleines Glas (200ml)</option><option value="250" selected>Glas (250ml)</option><option value="330">Dose (330ml)</option><option value="500">Flasche (500ml)</option><option value="custom">Andere Menge</option></select><input id="water-custom" class="hidden" type="number" placeholder="ml"><button class="btn btn-accent" onclick="addWater(today())">+ Hinzufügen</button></div><button class="btn btn-sm" style="margin-top:8px" onclick="openWaterModal(today())">Bearbeiten</button></div></div><div class="card" style="margin-bottom:1rem"><div class="badge">KI-Analyse</div><div class="title">Mahlzeit erfassen</div><textarea id="quick-text" placeholder="z.B. 200g Hähnchenbrust mit 150g Reis"></textarea><select id="quick-type" style="margin-top:8px"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select><button id="quick-save" class="btn btn-accent btn-full" style="margin-top:8px" onclick="saveMealQuick()">Analysieren &amp; Speichern</button><div class="divider" style="margin:12px 0"></div><div class="meal-entry-row"><select id="quick-recipe"><option value="">Rezept wählen...</option></select><select id="quick-recipe-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select><button class="btn btn-accent" onclick="openRecipeAddFromSelect()">+ Rezept hinzufügen</button></div><div class="meal-entry-row" style="margin-top:8px"><select id="quick-ingredient"><option value="">Zutat wählen...</option></select><input id="quick-ingredient-amount" type="number" step="0.1" placeholder="Menge"><select id="quick-ingredient-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select><button class="btn btn-accent" onclick="addIngredientMealFromDash()">+ Zutat hinzufügen</button></div><div id="quick-status" class="msg muted"></div></div><div class="card"><div class="between"><div class="title" style="margin:0">Heutige Mahlzeiten</div><span id="meal-count" class="small muted"></span></div><div id="today-meals" style="margin-top:1rem"></div></div></section>
+<section id="page-dashboard" class="page active"><div class="between" style="margin-bottom:1rem"><div><h1 style="font-size:25px">Guten Tag, <span id="dash-name">–</span></h1><p id="dash-date" class="muted small"></p></div><div><div class="small muted" style="margin-bottom:6px">Schritte heute + Zusatz — Ziel: <b id="kal-goal" style="color:var(--accent)">–</b> kcal</div><div class="activity" id="activity-buttons"></div><div class="steps-extra"><input id="manual-burn" type="number" placeholder="Zusatzverbrauch kcal" oninput="saveManualBurn()"><span class="small muted">optional z.B. Sport</span></div></div></div><div class="grid-2" style="margin-bottom:1rem"><div class="card calorie-card"><div class="flex calorie-layout" style="align-items:center"><div class="ring"><svg width="140" height="140" viewBox="0 0 140 140"><circle cx="70" cy="70" r="58" fill="none" stroke="var(--surface2)" stroke-width="12"/><circle id="kal-ring" cx="70" cy="70" r="58" fill="none" stroke="var(--accent)" stroke-width="12" stroke-dasharray="364.4" stroke-dashoffset="364.4" stroke-linecap="round"/></svg><div class="ring-center"><div id="kal-consumed" class="ring-val">0</div><div class="ring-lbl">kcal</div><div id="kal-balance" class="small" style="font-weight:700"></div></div></div><div style="flex:1;min-width:180px"><div class="small muted" style="font-weight:700;margin-bottom:8px">MAKROS HEUTE</div><div id="macro-bars"></div></div></div></div><div class="card"><div class="between"><div class="title" style="margin:0">Wasser</div><div class="small muted"><span id="water-total">0</span> / <span id="water-goal">2500</span> ml</div></div><div id="glasses" class="water-glasses"></div><div class="wide-row"><select id="water-amount" onchange="document.getElementById('water-custom').classList.toggle('hidden',this.value!=='custom')"><option value="150">Espresso (150ml)</option><option value="200">Kleines Glas (200ml)</option><option value="250" selected>Glas (250ml)</option><option value="330">Dose (330ml)</option><option value="500">Flasche (500ml)</option><option value="custom">Andere Menge</option></select><input id="water-custom" class="hidden" type="number" placeholder="ml"><button class="btn btn-accent" onclick="addWater(today())">+ Hinzufügen</button></div><button class="btn btn-sm" style="margin-top:8px" onclick="openWaterModal(today())">Bearbeiten</button></div></div><div class="card" style="margin-bottom:1rem"><div class="badge">KI-Analyse</div><div class="title">Mahlzeit erfassen</div><textarea id="quick-text" placeholder="z.B. 200g Hähnchenbrust mit 150g Reis"></textarea><div id="quick-ing-rows" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-sm btn-accent" style="flex:1" onclick="quickToggleIngSearch()">+ Zutat aus DB</button></div><div id="quick-ing-search-box" style="display:none;margin-top:8px;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border)"><input id="quick-ing-search" placeholder="Zutat suchen..." oninput="quickFilterIngredients()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-size:14px;margin-bottom:6px"><div id="quick-ing-results" style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div></div><div class="grid-2" style="margin-top:8px;gap:8px"><select id="quick-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select><button id="quick-save" class="btn btn-accent" onclick="saveMealQuick()">Analysieren &amp; Speichern</button></div><div class="divider" style="margin:12px 0"></div><div class="meal-entry-row"><select id="quick-recipe"><option value="">Rezept wählen...</option></select><select id="quick-recipe-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select><button class="btn btn-accent" onclick="openRecipeAddFromSelect()">+ Rezept hinzufügen</button></div><div id="quick-status" class="msg muted"></div></div><div class="card"><div class="between"><div class="title" style="margin:0">Heutige Mahlzeiten</div><span id="meal-count" class="small muted"></span></div><div id="today-meals" style="margin-top:1rem"></div></div></section>
 <section id="page-zutaten" class="page"><h2 style="margin-bottom:1.5rem">Zutaten</h2><div class="card" style="margin-bottom:1rem"><div class="badge">Vorrat</div><div class="title">Zutat erfassen</div><input type="hidden" id="ing-id"><div class="grid-2"><div class="field"><label>Titel / Produkt</label><input id="ing-name" placeholder="z.B. Haferflocken, Whey, Milch"></div><div class="field"><label>Basismenge</label><div class="wide-row" style="grid-template-columns:1fr 1fr"><input id="ing-amount" type="number" value="100" step="0.1"><select id="ing-unit"><option value="g">g</option><option value="ml">ml</option><option value="portion">Portion</option><option value="stueck">Stück</option></select></div></div></div><div class="field"><label>Beschreibung optional</label><textarea id="ing-text" placeholder="Optional: Marke, Fettstufe, Zutaten oder kurze Beschreibung. Wenn nur Titel + kcal vorhanden ist, kann die KI den Rest schätzen."></textarea></div><div class="grid-3"><div class="field"><label>Kalorien</label><input id="ing-kal" type="number" placeholder="kcal"></div><div class="field"><label>Protein</label><input id="ing-protein" type="number" step="0.1" placeholder="g"></div><div class="field"><label>Kohlenhydrate</label><input id="ing-carbs" type="number" step="0.1" placeholder="g"></div><div class="field"><label>Fett</label><input id="ing-fett" type="number" step="0.1" placeholder="g"></div><div class="field"><label>Gesättigt</label><input id="ing-sat" type="number" step="0.1" placeholder="g"></div><div class="field"><label>Ungesättigt</label><input id="ing-unsat" type="number" step="0.1" placeholder="g"></div></div><div class="flex"><button id="ing-save" class="btn btn-accent" onclick="saveIngredient()">Speichern</button><button id="ing-ai" class="btn" onclick="analyzeIngredientForm()">Mit KI abschätzen</button><span id="ing-status" class="msg muted"></span></div></div><div class="card"><div class="between"><div class="title" style="margin:0">Meine Zutaten zuhause</div><span class="small muted" id="ing-count"></span></div><div id="ingredient-list" style="margin-top:1rem"></div></div></section>
 <section id="page-rezepte" class="page"><h2 style="margin-bottom:1.5rem">Rezepte</h2><div class="card" style="margin-bottom:1rem"><div class="badge">KI-Analyse</div><div class="title">Neues Rezept</div><div class="field"><label>Name</label><input id="recipe-name" placeholder="z.B. Shake"></div><div class="field"><label>Zutaten</label><div id="draft-ingredient-rows" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"><button class="btn btn-sm btn-accent" onclick="draftToggleIngSearch()" style="flex:1;min-width:120px">+ Zutat aus DB</button></div><div style="margin-top:8px"><textarea id="draft-freetext" placeholder="Freitext, z.B. «1 Banane, 40g Haferflocken, 300ml Milch» — wird beim Speichern automatisch aufgeteilt" style="min-height:68px;resize:vertical"></textarea><span id="draft-parse-status" class="msg muted" style="display:block;margin-top:4px"></span></div><div id="draft-ing-search-box" style="display:none;margin-top:8px;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border)"><input id="draft-ing-search" placeholder="Zutat suchen..." oninput="draftFilterIngredients()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-size:14px;margin-bottom:6px"><div id="draft-ing-results" style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div></div></div><textarea id="recipe-text" class="hidden" placeholder="z.B. 20g Haferflocken, 300ml Milch..."></textarea><select id="recipe-ingredient-select" class="hidden"><option value="">Zutat zuhause einfügen...</option></select><input id="recipe-ingredient-amount" type="number" step="0.1" placeholder="Menge" class="hidden"><div id="recipe-components" class="component-list hidden"></div><div class="grid-2"><div class="field"><label>Basismenge</label><input id="recipe-amount" type="number" step="0.1" value="1"></div><div class="field"><label>Einheit</label><select id="recipe-unit"><option value="portion">Portion(en)</option><option value="g">Gramm (g)</option><option value="ml">Milliliter (ml)</option><option value="stueck">Stück</option><option value="el">Esslöffel (EL)</option><option value="tl">Teelöffel (TL)</option><option value="tasse">Tasse</option><option value="pkg">Packung</option></select></div></div><button id="recipe-save" class="btn btn-accent" onclick="saveRecipe()">Makros berechnen & Speichern</button><span id="recipe-status" class="msg muted"></span></div><div class="card"><div class="title">Meine Rezepte</div><div id="recipe-list"></div></div></section>
 <section id="page-kalender" class="page"><div class="between" style="margin-bottom:1rem"><h2>Monatsübersicht</h2><div class="flex"><button class="btn" onclick="changeMonth(-1)">Zurück</button><b id="month-label" style="min-width:145px;text-align:center"></b><button class="btn" onclick="changeMonth(1)">Weiter</button></div></div><div class="grid-2" style="margin-bottom:1rem"><div class="card"><div class="between"><div class="title" style="margin:0">Monatsstatistik</div><select id="month-mode" style="width:auto" onchange="renderCalendar()"><option value="avg">Täglicher Durchschnitt</option><option value="sum">Addierte Werte</option></select></div><div id="month-stats" style="margin-top:1rem"></div></div><div class="card"><div class="between"><div class="title" style="margin:0">Tagesdetails</div><button id="edit-day" class="btn btn-sm hidden" onclick="editSelectedDay()">Tag bearbeiten</button></div><div id="day-detail" style="margin-top:1rem"></div></div></div><div class="card"><div id="cal-head" class="calendar"></div><div id="cal-body" class="calendar" style="margin-top:6px"></div></div><div id="archive" style="margin-top:1rem"></div></section>
@@ -58,16 +58,13 @@
 <div id="add-recipe-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('add-recipe-modal')"><div class="modal" style="max-width:600px">
   <h3>Rezept zum Tag hinzufügen</h3>
   <input type="hidden" id="ar-id">
+  <input type="hidden" id="ar-type" value="mittagessen">
 
   <!-- Rezept-Info -->
   <div id="ar-info" style="margin-bottom:1rem;padding:12px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border)"></div>
 
-  <!-- Typ + Menge + Einheit -->
-  <div class="grid-3" style="margin-bottom:1rem">
-    <div class="field" style="margin:0">
-      <label>Mahlzeit-Typ</label>
-      <select id="ar-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
-    </div>
+  <!-- Menge + Einheit -->
+  <div class="grid-2" style="margin-bottom:1rem">
     <div class="field" style="margin:0">
       <label>Menge</label>
       <input id="ar-amount" type="number" step="0.1" oninput="updateRecipePreview()">
@@ -78,7 +75,7 @@
     </div>
   </div>
 
-  <!-- Zutaten-Zeilen (wie Rezept bearbeiten) -->
+  <!-- Zutaten-Zeilen -->
   <div class="field">
     <label>Zutaten anpassen</label>
     <div id="ar-ingredient-rows" style="display:flex;flex-direction:column;gap:6px"></div>
@@ -157,8 +154,18 @@ async function addWater(ds){let ml=$('water-amount').value==='custom'?parseInt($
 async function openWaterModal(ds){$('wm-date').value=ds;const {data}=await sb.from('wasser_log').select('*').eq('user_id',currentUser.id).eq('datum',ds).order('created_at');$('wm-list').innerHTML=(data||[]).map(w=>`<div class="between meal"><span>${w.menge_ml} ml</span><button class="btn btn-sm btn-danger" onclick="deleteWater('${w.id}')">Löschen</button></div>`).join('')||'<div class="empty">Keine Einträge</div>';$('water-modal').style.display='flex'}
 async function addWaterFromModal(){const ds=$('wm-date').value,ml=parseInt($('wm-amount').value);if(!ml)return;await sb.from('wasser_log').insert({user_id:currentUser.id,datum:ds,menge_ml:ml});$('wm-amount').value='';await openWaterModal(ds);if(ds===today())await loadDashboard()}
 async function deleteWater(id){const ds=$('wm-date').value;await sb.from('wasser_log').delete().eq('id',id).eq('user_id',currentUser.id);await openWaterModal(ds);if(ds===today())await loadDashboard()}
-function openRecipeAddFromSelect(){const rid=$('quick-recipe').value;if(!rid)return toast('quick-status','Bitte zuerst ein Rezept wählen',false);openRecipeAdd(rid);$('ar-type').value=$('quick-recipe-type')?.value||'mittagessen'}
-async function saveMealQuick(){const txt=$('quick-text').value.trim();const rid=$('quick-recipe').value;if(rid){openRecipeAdd(rid);return}if(!txt)return;await saveMealAnalyzed(txt,$('quick-type').value,today(),'quick-status','quick-save');$('quick-text').value='';await loadDashboard()}
+function openRecipeAddFromSelect(){const rid=$('quick-recipe').value;if(!rid)return toast('quick-status','Bitte zuerst ein Rezept wählen',false);openRecipeAdd(rid);$('ar-type').value=$('quick-recipe-type')?.value||$('quick-type')?.value||'mittagessen'}
+async function saveMealQuick(){
+  const rid=$('quick-recipe').value;
+  if(rid){openRecipeAdd(rid);$('ar-type').value=$('quick-type')?.value||'mittagessen';return}
+  const txt=$('quick-text').value.trim();
+  const ingLines=quickIngRows.map(r=>`${r.amount} ${r.unit} ${r.name}`).join(', ');
+  const fullText=[txt,ingLines].filter(Boolean).join(', ');
+  if(!fullText){toast('quick-status','Bitte Mahlzeit beschreiben oder Zutat wählen',false);return}
+  await saveMealAnalyzed(fullText,$('quick-type').value,today(),'quick-status','quick-save');
+  $('quick-text').value='';quickIngRows=[];renderQuickIngRows();
+  await loadDashboard();
+}
 async function saveMealForm(){const txt=$('meal-text').value.trim();if(!txt)return;await saveMealAnalyzed(txt,$('meal-type').value,$('meal-date').value,'meal-status','meal-save');$('meal-text').value='';await loadMeals();await loadDashboard()}
 async function saveMealAnalyzed(txt,type,ds,statusId,btnId){try{$(btnId).disabled=true;$(statusId).textContent='Analysiere...';const m=await analyze('meal',txt);await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:ds,mahlzeit_typ:type,beschreibung:txt,...dbMacros(m)});toast(statusId,'Gespeichert')}catch(e){toast(statusId,e.message,false)}finally{$(btnId).disabled=false}}
 async function loadMeals(){const ds=($('filter-date')?.value)||selectedDay||today();const {data}=await sb.from('mahlzeiten').select('*').eq('user_id',currentUser.id).eq('datum',ds).order('created_at',{ascending:false});meals=data||[];if($('meals-list'))$('meals-list').innerHTML=meals.length?meals.map(mealHtml).join(''):'<div class="empty">Keine Mahlzeiten</div>'}
@@ -340,26 +347,16 @@ function scaledRecipe(){
   const amount=n($('ar-amount').value)||n(r.portionen)||1;
   const base=n(r.portionen)||1;
   const fac=amount/base;
-  // arIngRows hold per-portion amounts. Scale them by fac, then sum directly.
+  // Use componentScaled correctly: each comp has amount=actual_amount, base_amount=DB_base, kalorien=per_base_amount
+  // componentScaled(c) = c.kalorien * (c.amount / c.base_amount) — this is correct per-row
+  // sumComponents sums all componentScaled results
   const dbComps=ingRowsToComponents(arIngRows);
   if(dbComps.length){
-    // Build flat macro sum: each comp already has per-portion macros
-    // We multiply by fac for the requested amount, using raw values (not base_amount ratio)
-    const m={kalorien:0,protein:0,carbs:0,fett:0,sat_fat:0,unsat_fat:0};
-    dbComps.forEach(c=>{
-      m.kalorien+=n(c.kalorien)*fac;
-      m.protein+=n(c.protein)*fac;
-      m.carbs+=n(c.carbs)*fac;
-      m.fett+=n(c.fett)*fac;
-      m.sat_fat+=n(c.sat_fat)*fac;
-      m.unsat_fat+=n(c.unsat_fat)*fac;
-    });
-    m.kalorien=Math.round(m.kalorien);
-    ['protein','carbs','fett','sat_fat','unsat_fat'].forEach(k=>m[k]=fmt(m[k]));
-    const komponenten=dbComps.map(c=>({...c,amount:fmt(n(c.amount)*fac)}));
-    return {r,amount,fac,m,komponenten};
+    // Scale amounts by fac (for multi-portion), keep base_amount intact so componentScaled works
+    const scaled=dbComps.map(c=>({...c,amount:fmt(n(c.amount)*fac)}));
+    const m=sumComponents(scaled);
+    return {r,amount,fac,m,komponenten:scaled};
   }
-  // Fallback: scale recipe macros directly
   const m={kalorien:Math.round(n(r.kalorien)*fac),protein:fmt(n(r.protein)*fac),carbs:fmt(n(r.carbs)*fac),fett:fmt(n(r.fett)*fac),sat_fat:fmt(n(r.sat_fat)*fac),unsat_fat:fmt(n(r.unsat_fat)*fac)};
   return {r,amount,fac,m,komponenten:[]};
 }
@@ -750,16 +747,18 @@ async function dmAddWater(){
 }
 
 async function dmSaveMeal(){
-  const txt = $('dm-text').value.trim();
   const rid = $('dm-recipe').value;
   if(rid){ dmAddRecipe(); return; }
-  if(!txt) return toast('dm-status','Text oder Rezept wählen',false);
+  const txt = $('dm-text').value.trim();
+  const ingLines=dmQuickIngRows.map(r=>`${r.amount} ${r.unit} ${r.name}`).join(', ');
+  const fullText=[txt,ingLines].filter(Boolean).join(', ');
+  if(!fullText) return toast('dm-status','Bitte Mahlzeit beschreiben oder Zutat wählen',false);
   try{
     $('dm-save').disabled=true;
     $('dm-status').textContent='Analysiere...';
-    const m = await analyze('meal', txt);
-    await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:dmDate,mahlzeit_typ:$('dm-type').value,beschreibung:txt,...dbMacros(m)});
-    $('dm-text').value='';
+    const m = await analyze('meal', fullText);
+    await sb.from('mahlzeiten').insert({user_id:currentUser.id,datum:dmDate,mahlzeit_typ:$('dm-type').value,beschreibung:fullText,...dbMacros(m)});
+    $('dm-text').value='';dmQuickIngRows=[];renderDmQuickIngRows();
     toast('dm-status','Gespeichert');
     await dmRefresh();
     if(dmDate===today()) loadDashboard();
@@ -795,6 +794,71 @@ async function dmDeleteMeal(id){
   renderCalendar();
 }
 // ── END TAG-MODAL ────────────────────────────────────────────────────
+
+
+// ── QUICK INGREDIENT SEARCH (Dashboard + Day Modal) ────────────────
+let quickIngRows=[], dmQuickIngRows=[];
+
+function quickToggleIngSearch(){
+  const box=$('quick-ing-search-box');
+  box.style.display=box.style.display==='none'?'block':'none';
+  if(box.style.display==='block'){$('quick-ing-search').value='';quickFilterIngredients();$('quick-ing-search').focus();}
+}
+function dmToggleIngSearch(){
+  const box=$('dm-ing-search-box');
+  box.style.display=box.style.display==='none'?'block':'none';
+  if(box.style.display==='block'){$('dm-ing-search').value='';dmQuickFilterIngredients();$('dm-ing-search').focus();}
+}
+
+function quickFilterIngredients(){
+  const q=($('quick-ing-search')?.value||'').toLowerCase();
+  const res=$('quick-ing-results');if(!res)return;
+  const filtered=ingredients.filter(i=>i.name.toLowerCase().includes(q));
+  res.innerHTML=filtered.length
+    ?filtered.map(i=>`<div class="ing-result-item" onclick="quickSelectIngredient('${i.id}')"><b>${esc(i.name)}</b> <span style="color:var(--text3);font-size:12px">${i.basis_menge||100}${i.einheit||'g'} · ${i.kalorien||0} kcal</span></div>`).join('')
+    :'<div class="small muted" style="padding:6px">Keine Zutaten gefunden</div>';
+}
+function dmQuickFilterIngredients(){
+  const q=($('dm-ing-search')?.value||'').toLowerCase();
+  const res=$('dm-ing-results');if(!res)return;
+  const filtered=ingredients.filter(i=>i.name.toLowerCase().includes(q));
+  res.innerHTML=filtered.length
+    ?filtered.map(i=>`<div class="ing-result-item" onclick="dmQuickSelectIngredient('${i.id}')"><b>${esc(i.name)}</b> <span style="color:var(--text3);font-size:12px">${i.basis_menge||100}${i.einheit||'g'} · ${i.kalorien||0} kcal</span></div>`).join('')
+    :'<div class="small muted" style="padding:6px">Keine Zutaten gefunden</div>';
+}
+
+function quickSelectIngredient(id){
+  const i=ingredients.find(x=>String(x.id)===String(id));if(!i)return;
+  quickIngRows.push({type:'free',amount:String(i.basis_menge||100),unit:i.einheit||'g',name:i.name,ingredient_id:String(id),base_amount:String(i.basis_menge||100),base_unit:i.einheit||'g',kalorien:n(i.kalorien),protein:n(i.protein),carbs:n(i.carbs),fett:n(i.fett),sat_fat:n(i.sat_fat),unsat_fat:n(i.unsat_fat)});
+  renderQuickIngRows();
+  $('quick-ing-search-box').style.display='none';
+}
+function dmQuickSelectIngredient(id){
+  const i=ingredients.find(x=>String(x.id)===String(id));if(!i)return;
+  dmQuickIngRows.push({type:'free',amount:String(i.basis_menge||100),unit:i.einheit||'g',name:i.name,ingredient_id:String(id),base_amount:String(i.basis_menge||100),base_unit:i.einheit||'g',kalorien:n(i.kalorien),protein:n(i.protein),carbs:n(i.carbs),fett:n(i.fett),sat_fat:n(i.sat_fat),unsat_fat:n(i.unsat_fat)});
+  renderDmQuickIngRows();
+  $('dm-ing-search-box').style.display='none';
+}
+
+function renderQuickIngRows(){
+  const c=$('quick-ing-rows');if(!c)return;
+  c.innerHTML=quickIngRows.map((r,i)=>`<div class="ing-row">
+    <input type="number" step="0.1" value="${esc(r.amount)}" placeholder="Menge" oninput="quickIngRows[${i}].amount=this.value" style="width:100%">
+    <div class="ing-unit-label">${esc(r.unit||'g')}</div>
+    <div class="ing-name" title="${esc(r.name)}">${esc(r.name)}</div>
+    <button class="ing-del" onclick="quickIngRows.splice(${i},1);renderQuickIngRows()">×</button>
+  </div>`).join('');
+}
+function renderDmQuickIngRows(){
+  const c=$('dm-ing-rows');if(!c)return;
+  c.innerHTML=dmQuickIngRows.map((r,i)=>`<div class="ing-row">
+    <input type="number" step="0.1" value="${esc(r.amount)}" placeholder="Menge" oninput="dmQuickIngRows[${i}].amount=this.value" style="width:100%">
+    <div class="ing-unit-label">${esc(r.unit||'g')}</div>
+    <div class="ing-name" title="${esc(r.name)}">${esc(r.name)}</div>
+    <button class="ing-del" onclick="dmQuickIngRows.splice(${i},1);renderDmQuickIngRows()">×</button>
+  </div>`).join('');
+}
+// ── END QUICK INGREDIENT SEARCH ───────────────────────────────────────
 
 // ── END DEBUG PANEL ──────────────────────────────────────────────────
 </script>
@@ -860,24 +924,23 @@ async function dmDeleteMeal(id){
       <div class="badge">KI-Analyse</div>
       <div class="title" style="font-size:14px">Mahlzeit erfassen</div>
       <textarea id="dm-text" placeholder="z.B. 200g Hähnchenbrust mit 150g Reis" style="min-height:70px"></textarea>
-      <select id="dm-type" style="margin-top:8px">
-        <option value="fruehstueck">Frühstück</option>
-        <option value="mittagessen" selected>Mittagessen</option>
-        <option value="abendessen">Abendessen</option>
-        <option value="snack">Snack</option>
-      </select>
-      <button id="dm-save" class="btn btn-accent btn-full" style="margin-top:8px" onclick="dmSaveMeal()">Analysieren & Speichern</button>
+      <div id="dm-ing-rows" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-sm btn-accent" style="flex:1" onclick="dmToggleIngSearch()">+ Zutat aus DB</button>
+      </div>
+      <div id="dm-ing-search-box" style="display:none;margin-top:8px;padding:10px;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border)">
+        <input id="dm-ing-search" placeholder="Zutat suchen..." oninput="dmQuickFilterIngredients()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);font-size:14px;margin-bottom:6px">
+        <div id="dm-ing-results" style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+      <div class="grid-2" style="margin-top:8px;gap:8px">
+        <select id="dm-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
+        <button id="dm-save" class="btn btn-accent" onclick="dmSaveMeal()">Analysieren & Speichern</button>
+      </div>
       <div class="divider" style="margin:12px 0"></div>
       <div class="meal-entry-row">
         <select id="dm-recipe"><option value="">Rezept wählen...</option></select>
         <select id="dm-recipe-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
         <button class="btn btn-accent" onclick="dmAddRecipe()">+ Rezept hinzufügen</button>
-      </div>
-      <div class="meal-entry-row" style="margin-top:8px">
-        <select id="dm-ingredient"><option value="">Zutat wählen...</option></select>
-        <input id="dm-ingredient-amount" type="number" step="0.1" placeholder="Menge">
-        <select id="dm-ingredient-type"><option value="fruehstueck">Frühstück</option><option value="mittagessen" selected>Mittagessen</option><option value="abendessen">Abendessen</option><option value="snack">Snack</option></select>
-        <button class="btn btn-accent" onclick="dmAddIngredient()">+ Zutat hinzufügen</button>
       </div>
       <div id="dm-status" class="msg muted"></div>
     </div>
