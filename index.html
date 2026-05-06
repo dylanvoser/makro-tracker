@@ -544,11 +544,44 @@ document.addEventListener('click',e=>{
 // ── TAG-MODAL (Kalender Tag bearbeiten) ──────────────────────────────
 let dmDate = null;
 
+function dmCalcTarget(){
+  // Like calcTDEE but uses dm-specific activity stored per date
+  const age=parseInt($('p-age')?.value||profile?.age),gender=$('p-gender')?.value||profile?.gender,
+    height=parseInt($('p-height')?.value||profile?.height_cm),weight=parseFloat($('p-weight')?.value||profile?.weight_kg),
+    goal=$('p-goal')?.value||profile?.goal||'halten';
+  if(!age||!gender||!height||!weight) return 2200;
+  const bmr=gender==='maennlich'?10*weight+6.25*height-5*age+5:10*weight+6.25*height-5*age-161;
+  const act=localStorage.getItem('activity_'+dmDate)||profile?.activity_level||'step_4000_6000';
+  const manualBurn=n(localStorage.getItem('manual_burn_'+dmDate));
+  const total=bmr+stepKcal(normalizeActivity(act),weight)+manualBurn;
+  return Math.round(total+(goal==='abnehmen'?-500:goal==='zunehmen'?300:0));
+}
+function dmSaveManualBurn(){
+  if(!dmDate) return;
+  localStorage.setItem('manual_burn_'+dmDate, $('dm-manual-burn').value||0);
+  dmRefresh();
+}
+function dmSetActivity(v){
+  if(!dmDate) return;
+  localStorage.setItem('activity_'+dmDate, v);
+  dmUpdateActivityUI();
+  dmRefresh();
+}
+function dmUpdateActivityUI(){
+  const act = normalizeActivity(localStorage.getItem('activity_'+dmDate)||profile?.activity_level||'step_4000_6000');
+  $('dm-activity-buttons').querySelectorAll('[data-act]').forEach(b=>b.classList.toggle('active',b.dataset.act===act));
+  $('dm-manual-burn').value = localStorage.getItem('manual_burn_'+dmDate)||'';
+}
+
 async function openDayModal(ds){
   dmDate = ds;
   const dateStr = ds.split('-');
   const display = `${dateStr[2]}.${dateStr[1]}.${dateStr[0]}`;
   $('day-modal-title').textContent = display + ' bearbeiten';
+
+  // Activity buttons
+  $('dm-activity-buttons').innerHTML = activities.map(a=>`<button data-act="${a[0]}" onclick="dmSetActivity('${a[0]}')">${a[1]}</button>`).join('');
+  dmUpdateActivityUI();
 
   // Populate recipe + ingredient selects
   $('dm-recipe').innerHTML = '<option value="">Rezept wählen...</option>' +
@@ -572,11 +605,21 @@ async function dmRefresh(){
   const water = (ws||[]).reduce((a,w)=>a+n(w.menge_ml),0);
   const waterGoal = n(profile?.water_goal_ml)||2500;
 
-  // Totals bar
+  // Ring + macro bars (same as renderTotals on dashboard)
   const sm = sumMeals(dayMeals);
-  const target = calcTDEE();
-  const bal = Math.round(n(sm.kalorien)-target);
-  $('dm-totals').innerHTML = `<div class="macro-row">${macroPills(sm)}<span class="macro-pill" style="color:${bal>0?'var(--danger)':'var(--info)'}">${bal>0?'+':''}${bal} kcal Defizit</span></div>`;
+  const dmTarget = dmCalcTarget();
+  const bal = Math.round(n(sm.kalorien) - dmTarget);
+  $('dm-kal-consumed').textContent = Math.round(sm.kalorien);
+  $('dm-kal-balance').textContent = (bal>0?'+':'')+bal+' kcal';
+  $('dm-kal-balance').style.color = bal>0?'var(--danger)':'var(--info)';
+  $('dm-kal-ring').setAttribute('stroke-dashoffset', 364.4-(Math.min(sm.kalorien/Math.max(dmTarget,1),1)*364.4));
+  $('dm-kal-goal').textContent = dmTarget;
+  $('dm-macro-bars').innerHTML =
+    bar('Protein',sm.protein,Math.max(n(profile?.weight_kg)*1.8,120),'#4a8f3f')+
+    bar('Kohlenhydrate',sm.carbs,300,'#e67e22')+
+    bar('Fett gesamt',sm.fett,80,'#2980b9')+
+    bar('Gesättigt',sm.sat_fat,25,'#c0392b')+
+    bar('Ungesättigt',sm.unsat_fat,55,'#2980b9');
 
   // Water
   $('dm-water-total').textContent = water;
@@ -670,8 +713,36 @@ async function dmDeleteMeal(id){
       <button class="btn btn-sm btn-danger" onclick="closeModal('day-modal')">Schliessen</button>
     </div>
 
-    <!-- Makro-Übersicht -->
-    <div id="dm-totals" class="card" style="margin-bottom:1rem;padding:1rem"></div>
+    <!-- Schritte / Aktivität -->
+    <div class="card" style="margin-bottom:1rem">
+      <div class="small muted" style="margin-bottom:6px">Schritte + Zusatz — Ziel: <b id="dm-kal-goal" style="color:var(--accent)">–</b> kcal</div>
+      <div class="activity" id="dm-activity-buttons"></div>
+      <div class="steps-extra" style="margin-top:8px">
+        <input id="dm-manual-burn" type="number" placeholder="Zusatzverbrauch kcal" oninput="dmSaveManualBurn()">
+        <span class="small muted">optional z.B. Sport</span>
+      </div>
+    </div>
+
+    <!-- Ring + Makro-Balken -->
+    <div class="card calorie-card" style="margin-bottom:1rem">
+      <div class="flex calorie-layout" style="align-items:center">
+        <div class="ring">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="58" fill="none" stroke="var(--surface2)" stroke-width="12"/>
+            <circle id="dm-kal-ring" cx="70" cy="70" r="58" fill="none" stroke="var(--accent)" stroke-width="12" stroke-dasharray="364.4" stroke-dashoffset="364.4" stroke-linecap="round"/>
+          </svg>
+          <div class="ring-center">
+            <div id="dm-kal-consumed" class="ring-val">0</div>
+            <div class="ring-lbl">kcal</div>
+            <div id="dm-kal-balance" class="small" style="font-weight:700"></div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:180px">
+          <div class="small muted" style="font-weight:700;margin-bottom:8px">MAKROS</div>
+          <div id="dm-macro-bars"></div>
+        </div>
+      </div>
+    </div>
 
     <!-- Wasser -->
     <div class="card" style="margin-bottom:1rem">
