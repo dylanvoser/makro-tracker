@@ -88,7 +88,7 @@ function renderActivityButtons(){$('activity-buttons').innerHTML=activities.map(
 function updateActivityUI(){const a=dayActivity();document.querySelectorAll('[data-act]').forEach(b=>b.classList.toggle('active',b.dataset.act===a));$('manual-burn').value=dayManual()||''}
 function stepKcal(act,weight){const w=n(weight)||75;const map={step_0_2000:100,step_2000_4000:180,step_4000_6000:260,step_6000_8000:360,step_8000_10000:470,step_10000_plus:600};return Math.round((map[act]||260)*(w/75))}
 function calcTDEE(){const age=parseInt($('p-age').value||profile?.age),gender=$('p-gender').value||profile?.gender,height=parseInt($('p-height').value||profile?.height_cm),weight=parseFloat($('p-weight').value||profile?.weight_kg),goal=$('p-goal').value||profile?.goal||'halten',act=dayActivity();if(!age||!gender||!height||!weight)return 2200;const bmr=gender==='maennlich'?10*weight+6.25*height-5*age+5:10*weight+6.25*height-5*age-161;const total=bmr+stepKcal(act,weight)+dayManual();let target=total+(goal==='abnehmen'?-500:goal==='zunehmen'?300:0);$('bmr').textContent=Math.round(bmr);$('tdee').textContent=Math.round(total);$('target').textContent=Math.round(target);$('protein-target').textContent=Math.round(weight*1.8)+'g';$('kal-goal').textContent=Math.round(target);return Math.round(target)}
-async function analyze(mode,text,extra={}){const r=await fetch('/.netlify/functions/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,text,...extra})});const d=await r.json();if(!r.ok||d.error)throw new Error(d.error||'Analyse fehlgeschlagen');return d}
+async function analyze(mode,text,extra={}){const r=await fetch('/.netlify/functions/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:text,mode,text,...extra})});const d=await r.json();if(!r.ok||d.error)throw new Error(d.error||'Analyse fehlgeschlagen');return d}
 async function loadDashboard(ds=today()){updateActivityUI();const [{data:ms},{data:ws}]=await Promise.all([sb.from('mahlzeiten').select('*').eq('user_id',currentUser.id).eq('datum',ds).order('created_at',{ascending:false}),sb.from('wasser_log').select('*').eq('user_id',currentUser.id).eq('datum',ds)]);meals=ms||[];renderDashboardMeals(meals);renderTotals(meals,ws||[])}
 function sumMeals(ms){return ms.reduce((a,m)=>({kalorien:a.kalorien+n(m.kalorien),protein:a.protein+n(m.protein),carbs:a.carbs+n(m.carbs),fett:a.fett+n(m.fett),sat_fat:a.sat_fat+n(m.sat_fat),unsat_fat:a.unsat_fat+n(m.unsat_fat)}),{kalorien:0,protein:0,carbs:0,fett:0,sat_fat:0,unsat_fat:0})}
 function renderTotals(ms,ws){const s=sumMeals(ms),target=calcTDEE(),water=ws.reduce((a,w)=>a+n(w.menge_ml),0),wg=n(profile?.water_goal_ml)||2500;$('kal-consumed').textContent=Math.round(s.kalorien);const bal=Math.round(s.kalorien-target);$('kal-balance').textContent=(bal>0?'+':'')+bal+' kcal';$('kal-balance').style.color=bal>0?'var(--danger)':'var(--info)';$('kal-ring').setAttribute('stroke-dashoffset',364.4-(Math.min(s.kalorien/Math.max(target,1),1)*364.4));$('macro-bars').innerHTML=bar('Protein',s.protein,Math.max(n(profile?.weight_kg)*1.8,120),'#4a8f3f')+bar('Kohlenhydrate',s.carbs,300,'#e67e22')+bar('Fett gesamt',s.fett,80,'#2980b9')+bar('Gesättigt',s.sat_fat,25,'#c0392b')+bar('Ungesättigt',s.unsat_fat,55,'#2980b9');$('water-total').textContent=water;$('water-goal').textContent=wg;renderGlasses(water,wg)}
@@ -209,13 +209,12 @@ async function saveRecipe(){
       }catch(e){if(statusEl){statusEl.textContent='Parse-Fehler: '+e.message;statusEl.className='msg err';}}
     }
     const text=ingRowsToText(draftIngRows);
-    const compsFromRows=ingRowsToComponents(draftIngRows);
-    if(!name||(!text&&!compsFromRows.length&&!recipeDraftComponents.length)){toast('recipe-status','Name und Zutaten fehlen',false);return;}
-    $('recipe-status').textContent=(compsFromRows.length||recipeDraftComponents.length)?'Speichere Komponenten...':'Analysiere...';
-    let m,komponenten=[],zutatenText=text;
-    const allComps=compsFromRows.length?compsFromRows:recipeDraftComponents;
-    if(allComps.length){komponenten=allComps;m=sumComponents(komponenten);zutatenText=text||componentSummary(komponenten)}
-    else{m=await analyze('recipe',text,{name,amount,unit})}
+    const dbComps=ingRowsToComponents(draftIngRows); // only DB-ingredient rows with macro data
+    if(!name||!text){toast('recipe-status','Name und Zutaten fehlen',false);return;}
+    $('recipe-status').textContent='Analysiere...';
+    let m,komponenten=dbComps,zutatenText=text;
+    // Always analyze via KI to get macros from the text description
+    m=await analyze('recipe',text,{name,amount,unit});
     await sb.from('rezepte').insert({user_id:currentUser.id,name,zutaten:zutatenText,portionen:amount,einheit:unit,komponenten,...dbMacros(m)});
     $('recipe-name').value='';draftIngRows=[];renderIngRows('draft');recipeDraftComponents=[];applyRecipeDraftTotals();
     toast('recipe-status','Gespeichert');await loadRecipes();
@@ -251,11 +250,11 @@ async function saveRecipeEdit(){
       $('rm-freetext').value='';renderIngRows('rm');
     }catch(e){console.warn('Freetext parse failed:',e);}
   }
-  const compsFromRows=ingRowsToComponents(rmIngRows);
-  let comps=compsFromRows.length?compsFromRows:(recipeEditComponents||[]);
-  let m=comps.length?sumComponents(comps):{kalorien:Math.round(n($('rm-kal').value)),protein:fmt($('rm-protein').value),carbs:fmt($('rm-carbs').value),fett:fmt($('rm-fett').value),sat_fat:fmt($('rm-sat').value),unsat_fat:fmt($('rm-unsat').value)};
+  const dbComps=ingRowsToComponents(rmIngRows); // only DB-ingredient rows with macro data
   const zutatenText=ingRowsToText(rmIngRows);
-  const up={name:$('rm-name').value,zutaten:zutatenText,portionen:n($('rm-amount').value)||1,einheit:$('rm-unit').value,komponenten:comps,...dbMacros(m)};
+  // Use existing manual macro values if already set, otherwise keep them
+  const m={kalorien:Math.round(n($('rm-kal').value)),protein:fmt($('rm-protein').value),carbs:fmt($('rm-carbs').value),fett:fmt($('rm-fett').value),sat_fat:fmt($('rm-sat').value),unsat_fat:fmt($('rm-unsat').value)};
+  const up={name:$('rm-name').value,zutaten:zutatenText,portionen:n($('rm-amount').value)||1,einheit:$('rm-unit').value,komponenten:dbComps,...dbMacros(m)};
   await sb.from('rezepte').update(up).eq('id',id).eq('user_id',currentUser.id);
   closeModal('recipe-modal');await loadRecipes();await loadDashboard();
 }
