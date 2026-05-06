@@ -529,6 +529,14 @@ const _cw=console.warn.bind(console);console.warn=function(...a){_cw(...a);dbg(a
 const _cl=console.log.bind(console);console.log=function(...a){_cl(...a);dbg(a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' '),'info')};
 window.addEventListener('error',e=>{dbg('UNCAUGHT: '+e.message+' ('+e.filename?.split('/').pop()+':'+e.lineno+')','err')});
 window.addEventListener('unhandledrejection',e=>{dbg('PROMISE: '+(e.reason?.message||String(e.reason)),'err')});
+document.addEventListener('click',e=>{
+  const t=e.target;
+  dbg('CLICK: '+t.tagName+(t.id?' #'+t.id:'')+(t.className?' .'+String(t.className).split(' ')[0]:'')+(t.onclick?' [has onclick]':' [NO onclick]')+' | composedPath top: '+e.composedPath().slice(0,3).map(x=>x.tagName||x.toString()).join('>'));
+  // Check if anything is covering this element
+  const rect=t.getBoundingClientRect();
+  const topEl=document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2);
+  if(topEl!==t) dbg('⚠️ BLOCKED BY: '+topEl.tagName+(topEl.id?' #'+topEl.id:'')+(topEl.className?' .'+String(topEl.className).split(' ')[0]:''),'err');
+},'true');
 // ── END DEBUG PANEL ──────────────────────────────────────────────────
 </script>
 </body>
