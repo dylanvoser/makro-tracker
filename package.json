@@ -1,0 +1,11 @@
+{
+  "name": "makro-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cp node_modules/@supabase/supabase-js/dist/umd/supabase.js supabase.min.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  }
+}
